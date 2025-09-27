@@ -67,37 +67,8 @@ export class HelpPlugin extends BasePlugin {
     console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
     console.log();
 
-    // Interactive prompt
-    console.log(chalk.cyan('Press any key to return to main menu...'));
-    
-    // Wait for user input (simplified for CLI)
-    setTimeout(() => {
-      console.clear();
-      this.showMainMenu();
-    }, 2000);
-  }
-
-  private showMainMenu(): void {
-    console.log(chalk.cyan(figlet.textSync('TCMA CLI', { 
-      font: 'ANSI Shadow',
-      horizontalLayout: 'default',
-      verticalLayout: 'default'
-    })));
-    
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log(chalk.green('                    Welcome to TCMA CLI Tools v1.0.0'));
-    console.log(chalk.green('                    Development utilities for TCMA team'));
+    console.log();
     console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
     console.log();
-    console.log(chalk.blue('Available Commands:'));
-    console.log();
-    console.log(chalk.white('  /help          ') + chalk.gray('Show help and available commands'));
-    console.log(chalk.white('  /version       ') + chalk.gray('Show version information'));
-    console.log(chalk.white('  /plugins       ') + chalk.gray('List all available plugins'));
-    console.log();
-    console.log(chalk.yellow('Usage: tcmatools <command>'));
-    console.log(chalk.gray('Example: tcmatools /help'));
-    console.log();
-    console.log(chalk.cyan('Type a command or press Ctrl+C to exit'));
   }
 }
