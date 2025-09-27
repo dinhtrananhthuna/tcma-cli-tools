@@ -1,6 +1,6 @@
 import { BasePlugin } from '../core/base-plugin';
-import chalk from 'chalk';
-import figlet from 'figlet';
+import { UIUtils } from '../utils/ui-utils';
+import { CLI_CONFIG } from '../utils/constants';
 
 export class UpdatePlugin extends BasePlugin {
   name = 'Update Tool';
@@ -12,58 +12,48 @@ export class UpdatePlugin extends BasePlugin {
   }
 
   private async showUpdateMenu(): Promise<void> {
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log(chalk.cyan('                              UPDATE TOOL'));
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log();
+    this.showPluginHeader('Update Tool');
 
     try {
-      // Get current version
-      const currentVersion = '1.0.0'; // This would be read from package.json
-      
-      console.log(chalk.green('CURRENT VERSION:'));
-      console.log(chalk.white(`   ${currentVersion}`));
-      console.log();
+      // Show current version
+      UIUtils.showInfoSection('Current Version', [CLI_CONFIG.VERSION]);
 
       // Check for updates (simulate)
-      console.log(chalk.blue('CHECKING FOR UPDATES...'));
+      UIUtils.showLoading('Checking for updates');
       await this.sleep(1000);
       
       // Simulate update check
       const hasUpdate = Math.random() > 0.5; // Random for demo
       
       if (hasUpdate) {
-        console.log(chalk.green('UPDATE AVAILABLE!'));
-        console.log(chalk.white('   Latest version: 1.1.0'));
-        console.log();
+        UIUtils.showSuccess('Update available!');
+        UIUtils.showInfoSection('Latest Version', ['1.1.0']);
         
-        console.log(chalk.blue('UPDATE INSTRUCTIONS:'));
-        console.log(chalk.white('   1. Run: npm install -g git+https://github.com/tcma-team/tcma-cli-tools.git'));
-        console.log(chalk.white('   2. Or run: npm update -g tcma-cli-tools'));
-        console.log();
+        UIUtils.showCommandSection('Update Instructions', [
+          '1. Run: npm install -g git+https://github.com/tcma-team/tcma-cli-tools.git',
+          '2. Or run: npm update -g tcma-cli-tools'
+        ]);
         
-        console.log(chalk.yellow('NOTE: Make sure to backup your configuration before updating.'));
+        UIUtils.showNote('Make sure to backup your configuration before updating.');
       } else {
-        console.log(chalk.green('YOU ARE RUNNING THE LATEST VERSION!'));
-        console.log(chalk.gray('   No updates available at this time.'));
+        UIUtils.showSuccess('You are running the latest version!');
+        UIUtils.showInfoSection('Status', ['No updates available at this time.']);
       }
       
-      console.log();
-      console.log(chalk.blue('MANUAL UPDATE COMMANDS:'));
-      console.log(chalk.white('   npm install -g git+https://github.com/tcma-team/tcma-cli-tools.git'));
-      console.log(chalk.white('   npm update -g tcma-cli-tools'));
-      console.log();
+      // Show manual update commands
+      this.showUpdateCommands();
       
-      console.log(chalk.blue('UPDATE SOURCES:'));
-      console.log(chalk.white('   GitHub: https://github.com/tcma-team/tcma-cli-tools'));
-      console.log(chalk.white('   NPM: https://www.npmjs.com/package/tcma-cli-tools'));
+      // Show update sources
+      UIUtils.showInfoSection('Update Sources', [
+        `GitHub: ${CLI_CONFIG.REPOSITORY}`,
+        `NPM: ${CLI_CONFIG.NPM_URL}`
+      ]);
       
     } catch (error) {
-      console.error(chalk.red('ERROR CHECKING FOR UPDATES:'), error);
+      UIUtils.showError('Error checking for updates');
+      this.log(`Error: ${error}`, 'error');
     }
 
-    console.log();
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log();
+    await this.showPluginFooter();
   }
 }

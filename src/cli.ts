@@ -5,6 +5,8 @@ import figlet from 'figlet';
 import inquirer from 'inquirer';
 import { PluginManager } from './core/plugin-manager';
 import { UpdatePlugin } from './plugins/update-plugin';
+import { UIUtils } from './utils/ui-utils';
+import { CLI_CONFIG } from './utils/constants';
 
 // Initialize CLI
 async function initializeCLI() {
@@ -22,16 +24,12 @@ async function initializeCLI() {
 
 // ASCII Art Welcome
 function showWelcome() {
-  console.clear();
-  console.log(chalk.cyan(figlet.textSync('TCMA CLI', { 
-    font: 'ANSI Shadow',
-    horizontalLayout: 'default',
-    verticalLayout: 'default'
-  })));
+  UIUtils.clearScreen();
+  UIUtils.showTitle('TCMA CLI');
   
   console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-  console.log(chalk.green('                    Welcome to TCMA CLI Tools v1.0.0'));
-  console.log(chalk.green('                    Development utilities for TCMA team - Code by Vu Dinh        '));
+  console.log(chalk.green(`                    Welcome to ${CLI_CONFIG.NAME} v${CLI_CONFIG.VERSION}`));
+  console.log(chalk.green(`                    ${CLI_CONFIG.DESCRIPTION}`));
   console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log();
 }
@@ -64,7 +62,7 @@ async function showMainMenu(pluginManager: PluginManager) {
   ]);
 
   if (selectedPlugin === 'exit') {
-    console.log(chalk.green('Goodbye! Thanks for using TCMA CLI Tools.'));
+    UIUtils.showGoodbye();
     process.exit(0);
   }
 
@@ -74,51 +72,18 @@ async function showMainMenu(pluginManager: PluginManager) {
     try {
       await plugin.execute('menu');
       
-      // Wait for user to press any key to return to menu
-      console.log();
-      console.log(chalk.cyan('Press any key to return to main menu...'));
-      await waitForUserInput();
+      // Plugin will handle its own footer with Escape key
       
       // Return to main menu
       await showMainMenu(pluginManager);
     } catch (error) {
       console.error(chalk.red('Error executing plugin:'), error);
-      console.log(chalk.yellow('Press any key to return to main menu...'));
-      await waitForUserInput();
+      console.log(chalk.yellow('Press ESC to return to main menu...'));
+      await UIUtils.waitForEscape();
       await showMainMenu(pluginManager);
     }
   }
 }
-
-// Wait for user input
-function waitForUserInput(): Promise<void> {
-  return new Promise((resolve) => {
-    // Check if stdin is a TTY (interactive terminal)
-    if (process.stdin.isTTY) {
-      process.stdin.setRawMode(true);
-      process.stdin.resume();
-      process.stdin.once('data', () => {
-        process.stdin.setRawMode(false);
-        process.stdin.pause();
-        resolve();
-      });
-    } else {
-      // If not TTY (like in pipe), just resolve immediately
-      resolve();
-    }
-  });
-}
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error(chalk.red('Error:'), error.message);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error(chalk.red('Unhandled rejection:'), reason);
-  process.exit(1);
-});
 
 // Handle Ctrl+C gracefully
 process.on('SIGINT', () => {
