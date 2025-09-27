@@ -15,6 +15,7 @@ interface FileData {
 
 interface ComparisonResult {
   matchedRows: any[];
+  unmatchedRows: any[];
   fieldMapping: { [key: string]: string };
 }
 
@@ -235,19 +236,50 @@ export class DataComparisonPlugin extends BasePlugin {
       fileASet.add(key);
     });
 
-    // Find matching rows in file B
+    // Find matching and unmatched rows in file B
     const matchedRows: any[] = [];
+    const unmatchedRows: any[] = [];
+    
     dataB.rows.forEach(row => {
       const key = fileBFieldIndices.map((index: number) => String(row[dataB.headers[index]] || '')).join('|');
       if (fileASet.has(key)) {
         matchedRows.push(row);
+      } else {
+        unmatchedRows.push(row);
       }
     });
 
-    this.log(`Found ${matchedRows.length} matching rows out of ${dataB.rows.length} total rows`, 'success');
+    // Display comparison statistics
+    console.log();
+    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(chalk.green('                    COMPARISON RESULTS'));
+    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log();
+    console.log(chalk.white(`📊 File A (Reference): ${dataA.rows.length} rows`));
+    console.log(chalk.white(`📊 File B (Extraction): ${dataB.rows.length} rows`));
+    console.log(chalk.green(`✅ Matched rows: ${matchedRows.length} rows`));
+    console.log(chalk.red(`❌ Unmatched rows: ${unmatchedRows.length} rows`));
+    console.log();
+
+    // Ask if user wants to export unmatched rows
+    if (unmatchedRows.length > 0) {
+      const { exportUnmatched } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'exportUnmatched',
+          message: chalk.yellow(`Do you want to export the ${unmatchedRows.length} unmatched rows from File B?`),
+          default: false
+        }
+      ]);
+
+      if (exportUnmatched) {
+        await this.exportUnmatchedRows(unmatchedRows, dataB.headers);
+      }
+    }
 
     return {
       matchedRows,
+      unmatchedRows,
       fieldMapping: {}
     };
   }
@@ -280,6 +312,24 @@ export class DataComparisonPlugin extends BasePlugin {
     }
 
     return fieldMapping;
+  }
+
+  private async exportUnmatchedRows(unmatchedRows: any[], headers: string[]): Promise<void> {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fileName = `Unmatched_rows-${timestamp}.csv`;
+    const filePath = path.resolve(fileName);
+
+    // Write CSV file with original File B format
+    const csvWriter = createObjectCsvWriter({
+      path: filePath,
+      header: headers.map(header => ({ id: header, title: header }))
+    });
+
+    await csvWriter.writeRecords(unmatchedRows);
+
+    this.log(`Successfully exported ${unmatchedRows.length} unmatched rows to ${fileName}`, 'success');
+    console.log(chalk.green(`File saved at: ${filePath}`));
+    console.log();
   }
 
   private async exportToCSV(matchedRows: any[], fieldMapping: { [key: string]: string }, outputHeaders: string[]): Promise<void> {
