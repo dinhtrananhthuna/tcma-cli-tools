@@ -1,0 +1,46 @@
+{
+  "name": "tcma-cli-tools",
+  "version": "1.0.0",
+  "description": "TCMA CLI Tools - Development utilities for TCMA team",
+  "main": "dist/index.js",
+  "bin": {
+    "tcmatools": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build",
+    "clean": "rimraf dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tcma-team/tcma-cli-tools.git"
+  },
+  "keywords": ["cli", "development", "tools", "tcma"],
+  "author": "TCMA Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "dist/",
+    "templates/",
+    "config/"
+  ],
+  "dependencies": {
+    "commander": "^11.1.0",
+    "inquirer": "^9.2.12",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "figlet": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/inquirer": "^9.0.7",
+    "@types/figlet": "^1.5.6",
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.0",
+    "rimraf": "^5.0.5"
+  }
+}
