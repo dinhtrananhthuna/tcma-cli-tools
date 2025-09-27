@@ -68,6 +68,9 @@ export class DataComparisonPlugin extends BasePlugin {
 
   private async startWizard(): Promise<void> {
     try {
+      // Clear console to remove previous session messages
+      console.clear();
+      
       // Step 1: Select reference file (File A)
       const fileA = await this.selectFile('reference', 'Select reference file (File A)');
       const dataA = await this.readFile(fileA);
