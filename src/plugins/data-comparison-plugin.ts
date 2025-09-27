@@ -13,10 +13,20 @@ interface FileData {
   rows: any[];
 }
 
+interface ComparisonConfig {
+  fileAFields: number[];
+  fileBFields: number[];
+  fieldMapping: { [key: string]: string };
+  createdAt: string;
+  description?: string;
+}
+
 interface ComparisonResult {
   matchedRows: any[];
   unmatchedRows: any[];
   fieldMapping: { [key: string]: string };
+  fileAFields?: number[];
+  fileBFields?: number[];
 }
 
 export class DataComparisonPlugin extends BasePlugin {
@@ -66,11 +76,44 @@ export class DataComparisonPlugin extends BasePlugin {
       const fileB = await this.selectFile('extraction', 'Select extraction file (File B)', fileA);
       const dataB = await this.readFile(fileB);
       
-      // Step 3: Data comparison
-      const comparisonResult = await this.performDataComparison(dataA, dataB);
+      // Check for existing config
+      const existingConfig = await this.checkForExistingConfig();
+      let config: ComparisonConfig | null = null;
       
-      // Step 4: Field mapping
-      const fieldMapping = await this.performFieldMapping(dataA.headers, dataB.headers);
+      if (existingConfig) {
+        const { useConfig } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'useConfig',
+            message: chalk.yellow(`Found existing config file. Do you want to use it for matching and mapping?`),
+            default: true
+          }
+        ]);
+        
+        if (useConfig) {
+          config = existingConfig;
+          this.log('Using existing configuration', 'success');
+        }
+      }
+      
+      let comparisonResult: ComparisonResult;
+      let fieldMapping: { [key: string]: string };
+      
+      if (config) {
+        // Use existing config
+        comparisonResult = await this.performDataComparisonWithConfig(dataA, dataB, config);
+        fieldMapping = config.fieldMapping;
+      } else {
+        // Manual configuration
+        // Step 3: Data comparison
+        comparisonResult = await this.performDataComparison(dataA, dataB);
+        
+        // Step 4: Field mapping
+        fieldMapping = await this.performFieldMapping(dataA.headers, dataB.headers);
+        
+        // Ask to save config
+        await this.saveConfigPrompt(comparisonResult.fileAFields || [], comparisonResult.fileBFields || [], fieldMapping);
+      }
       
       // Step 5: Export CSV
       await this.exportToCSV(comparisonResult.matchedRows, fieldMapping, dataA.headers);
@@ -184,6 +227,147 @@ export class DataComparisonPlugin extends BasePlugin {
     return { headers, rows };
   }
 
+  private async checkForExistingConfig(): Promise<ComparisonConfig | null> {
+    const configPath = path.resolve('data-comparison-config.json');
+    
+    if (fs.existsSync(configPath)) {
+      try {
+        const configData = fs.readFileSync(configPath, 'utf8');
+        const config = JSON.parse(configData) as ComparisonConfig;
+        
+        // Display config info
+        console.log();
+        console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+        console.log(chalk.green('                    FOUND EXISTING CONFIG'));
+        console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+        console.log();
+        console.log(chalk.white(`📅 Created: ${config.createdAt}`));
+        if (config.description) {
+          console.log(chalk.white(`📝 Description: ${config.description}`));
+        }
+        console.log(chalk.white(`🔍 File A fields: ${config.fileAFields.join(', ')}`));
+        console.log(chalk.white(`🔍 File B fields: ${config.fileBFields.join(', ')}`));
+        console.log();
+        
+        return config;
+      } catch (error) {
+        this.log(`Error reading config file: ${error}`, 'warning');
+        return null;
+      }
+    }
+    
+    return null;
+  }
+
+  private async saveConfigPrompt(fileAFields: number[], fileBFields: number[], fieldMapping: { [key: string]: string }): Promise<void> {
+    const { saveConfig } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'saveConfig',
+        message: chalk.yellow('Do you want to save this mapping configuration for future use?'),
+        default: true
+      }
+    ]);
+
+    if (saveConfig) {
+      const { description } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'description',
+          message: chalk.blue('Enter a description for this configuration (optional):'),
+          default: ''
+        }
+      ]);
+
+      await this.saveConfig(fileAFields, fileBFields, fieldMapping, description);
+    }
+  }
+
+  private async saveConfig(fileAFields: number[], fileBFields: number[], fieldMapping: { [key: string]: string }, description: string): Promise<void> {
+    const config: ComparisonConfig = {
+      fileAFields,
+      fileBFields,
+      fieldMapping,
+      createdAt: new Date().toISOString(),
+      description: description || undefined
+    };
+
+    const configPath = path.resolve('data-comparison-config.json');
+    
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      this.log(`Configuration saved to ${configPath}`, 'success');
+    } catch (error) {
+      this.log(`Error saving config: ${error}`, 'error');
+    }
+  }
+
+  private async performDataComparisonWithConfig(dataA: FileData, dataB: FileData, config: ComparisonConfig): Promise<ComparisonResult> {
+    this.showPluginHeader('Data Comparison (Using Config)');
+    
+    console.log(chalk.green('Using saved configuration:'));
+    console.log(chalk.white(`File A fields: ${config.fileAFields.join(', ')}`));
+    console.log(chalk.white(`File B fields: ${config.fileBFields.join(', ')}`));
+    console.log();
+
+    const fileAFieldIndices = config.fileAFields.map(f => f - 1);
+    const fileBFieldIndices = config.fileBFields.map(f => f - 1);
+
+    // Create comparison sets
+    const fileASet = new Set<string>();
+    dataA.rows.forEach(row => {
+      const key = fileAFieldIndices.map((index: number) => String(row[dataA.headers[index]] || '')).join('|');
+      fileASet.add(key);
+    });
+
+    // Find matching and unmatched rows in file B
+    const matchedRows: any[] = [];
+    const unmatchedRows: any[] = [];
+    
+    dataB.rows.forEach(row => {
+      const key = fileBFieldIndices.map((index: number) => String(row[dataB.headers[index]] || '')).join('|');
+      if (fileASet.has(key)) {
+        matchedRows.push(row);
+      } else {
+        unmatchedRows.push(row);
+      }
+    });
+
+    // Display comparison statistics
+    console.log();
+    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(chalk.green('                    COMPARISON RESULTS'));
+    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log();
+    console.log(chalk.white(`📊 File A (Reference): ${dataA.rows.length} rows`));
+    console.log(chalk.white(`📊 File B (Extraction): ${dataB.rows.length} rows`));
+    console.log(chalk.green(`✅ Matched rows: ${matchedRows.length} rows`));
+    console.log(chalk.red(`❌ Unmatched rows: ${unmatchedRows.length} rows`));
+    console.log();
+
+    // Ask if user wants to export unmatched rows
+    if (unmatchedRows.length > 0) {
+      const { exportUnmatched } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'exportUnmatched',
+          message: chalk.yellow(`Do you want to export the ${unmatchedRows.length} unmatched rows from File B?`),
+          default: false
+        }
+      ]);
+
+      if (exportUnmatched) {
+        await this.exportUnmatchedRows(unmatchedRows, dataB.headers);
+      }
+    }
+
+    return {
+      matchedRows,
+      unmatchedRows,
+      fieldMapping: config.fieldMapping
+    };
+  }
+
   private async performDataComparison(dataA: FileData, dataB: FileData): Promise<ComparisonResult> {
     this.showPluginHeader('Data Comparison');
     
@@ -280,7 +464,9 @@ export class DataComparisonPlugin extends BasePlugin {
     return {
       matchedRows,
       unmatchedRows,
-      fieldMapping: {}
+      fieldMapping: {},
+      fileAFields: fileAFields.split(',').map((f: string) => parseInt(f.trim())),
+      fileBFields: fileBFields.split(',').map((f: string) => parseInt(f.trim()))
     };
   }
 
