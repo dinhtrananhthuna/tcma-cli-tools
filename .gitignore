@@ -128,3 +128,6 @@ test-results.xml
 
 # Local development
 .local/
+
+#sample data
+sample/

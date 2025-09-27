@@ -17,7 +17,12 @@
     "type": "git",
     "url": "git+https://github.com/tcma-team/tcma-cli-tools.git"
   },
-  "keywords": ["cli", "development", "tools", "tcma"],
+  "keywords": [
+    "cli",
+    "development",
+    "tools",
+    "tcma"
+  ],
   "author": "TCMA Team",
   "license": "MIT",
   "engines": {
@@ -29,18 +34,21 @@
     "config/"
   ],
   "dependencies": {
-    "commander": "^11.1.0",
-    "inquirer": "^9.2.12",
     "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "csv-parser": "^3.2.0",
+    "csv-writer": "^1.6.0",
+    "figlet": "^1.6.0",
+    "inquirer": "^9.2.12",
     "ora": "^5.4.1",
-    "figlet": "^1.6.0"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "@types/inquirer": "^9.0.7",
     "@types/figlet": "^1.5.6",
-    "typescript": "^5.3.0",
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.10.0",
+    "rimraf": "^5.0.5",
     "ts-node": "^10.9.0",
-    "rimraf": "^5.0.5"
+    "typescript": "^5.3.0"
   }
 }

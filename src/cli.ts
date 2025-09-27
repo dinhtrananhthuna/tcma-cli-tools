@@ -5,6 +5,7 @@ import figlet from 'figlet';
 import inquirer from 'inquirer';
 import { PluginManager } from './core/plugin-manager';
 import { UpdatePlugin } from './plugins/update-plugin';
+import { DataComparisonPlugin } from './plugins/data-comparison-plugin';
 import { UIUtils } from './utils/ui-utils';
 import { CLI_CONFIG } from './utils/constants';
 
@@ -17,6 +18,7 @@ async function initializeCLI() {
   
   // Register built-in plugins
   pluginManager.registerPlugin(new UpdatePlugin());
+  pluginManager.registerPlugin(new DataComparisonPlugin());
   
   // Start interactive menu
   await showMainMenu(pluginManager);
