@@ -4,9 +4,6 @@ import chalk from 'chalk';
 import figlet from 'figlet';
 import inquirer from 'inquirer';
 import { PluginManager } from './core/plugin-manager';
-import { HelpPlugin } from './plugins/help-plugin';
-import { VersionPlugin } from './plugins/version-plugin';
-import { PluginsPlugin } from './plugins/plugins-plugin';
 import { UpdatePlugin } from './plugins/update-plugin';
 
 // Initialize CLI
@@ -17,9 +14,6 @@ async function initializeCLI() {
   const pluginManager = new PluginManager();
   
   // Register built-in plugins
-  pluginManager.registerPlugin(new HelpPlugin());
-  pluginManager.registerPlugin(new VersionPlugin());
-  pluginManager.registerPlugin(new PluginsPlugin());
   pluginManager.registerPlugin(new UpdatePlugin());
   
   // Start interactive menu
@@ -37,7 +31,7 @@ function showWelcome() {
   
   console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log(chalk.green('                    Welcome to TCMA CLI Tools v1.0.0'));
-  console.log(chalk.green('                    Development utilities for TCMA team'));
+  console.log(chalk.green('                    Development utilities for TCMA team - Code by Vu Dinh        '));
   console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log();
 }
@@ -70,7 +64,7 @@ async function showMainMenu(pluginManager: PluginManager) {
   ]);
 
   if (selectedPlugin === 'exit') {
-    console.log(chalk.green('👋 Goodbye! Thanks for using TCMA CLI Tools.'));
+    console.log(chalk.green('Goodbye! Thanks for using TCMA CLI Tools.'));
     process.exit(0);
   }
 
@@ -128,7 +122,7 @@ process.on('unhandledRejection', (reason) => {
 
 // Handle Ctrl+C gracefully
 process.on('SIGINT', () => {
-  console.log(chalk.yellow('\n\n👋 Goodbye! Thanks for using TCMA CLI Tools.'));
+  console.log(chalk.yellow('\n\nGoodbye! Thanks for using TCMA CLI Tools.'));
   process.exit(0);
 });
 

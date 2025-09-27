@@ -7,24 +7,19 @@
 npm install -g git+https://github.com/tcma-team/tcma-cli-tools.git
 
 # Verify installation
-tcmatools --version
+tcmatools
 ```
 
 ## Usage
 
 ```bash
-# Show main menu
+# Show interactive menu
 tcmatools
 
-# Execute commands
-tcmatools /help
-tcmatools /version
-tcmatools /plugins
-
-# Use aliases
-tcmatools /h
-tcmatools /v
-tcmatools /p
+# Menu will display:
+# ? Select a tool to run: (Use arrow keys)
+# ❯ 1. Update Tool 
+#    2. Exit
 ```
 
 ## Development Setup
@@ -45,14 +40,21 @@ npm run dev
 
 # Test installation
 npm link
-tcmatools --version
+tcmatools
 ```
 
-## Available Commands
+## Available Tools
 
-- `/help`, `/h`, `/?` - Show help information
-- `/version`, `/v` - Show version information  
-- `/plugins`, `/p` - List all available plugins
+- **Update Tool** - Check for updates and update TCMA CLI Tools
+
+## Features
+
+- ✅ **Interactive Menu** with numbered options
+- ✅ **Retro ASCII Art** styling (no emojis)
+- ✅ **Update Tool** for version management
+- ✅ **Cross-platform Support**
+- ✅ **TypeScript Support**
+- ✅ **Git Direct Installation**
 
 ## Plugin System
 
@@ -79,16 +81,6 @@ export class MyPlugin extends BasePlugin {
   }
 }
 ```
-
-## Features
-
-- ✅ **ASCII Art Welcome Screen**
-- ✅ **Plugin-based Architecture**
-- ✅ **Slash Commands** (`/help`, `/version`, `/plugins`)
-- ✅ **Command Aliases** (`/h`, `/v`, `/p`)
-- ✅ **Cross-platform Support**
-- ✅ **TypeScript Support**
-- ✅ **Git Direct Installation**
 
 ## License
 
