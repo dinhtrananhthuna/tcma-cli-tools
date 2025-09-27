@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tcma-team/tcma-cli-tools.git"
+    "url": "git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git"
   },
   "keywords": [
     "cli",

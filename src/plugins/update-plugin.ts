@@ -30,7 +30,7 @@ export class UpdatePlugin extends BasePlugin {
         UIUtils.showInfoSection('Latest Version', ['1.1.0']);
         
         UIUtils.showCommandSection('Update Instructions', [
-          '1. Run: npm install -g git+https://github.com/tcma-team/tcma-cli-tools.git',
+          '1. Run: npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
           '2. Or run: npm update -g tcma-cli-tools'
         ]);
         

@@ -7,7 +7,7 @@ Development utilities for TCMA team.
 Install directly from Git repository:
 
 ```bash
-npm install -g git+https://github.com/tcma-team/tcma-cli-tools.git
+npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git
 ```
 
 ## Usage
@@ -29,7 +29,7 @@ tcmatools
 
 ```bash
 # Clone repository
-git clone https://github.com/tcma-team/tcma-cli-tools.git
+git clone https://github.com/dinhtrananhthuna/tcma-cli-tools.git
 cd tcma-cli-tools
 
 # Install dependencies

@@ -50,7 +50,7 @@ tcma u
 ```
 
 #### Các lệnh cập nhật:
-- `npm install -g git+https://github.com/tcma-team/tcma-cli-tools.git`
+- `npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git`
 - `npm update -g tcma-cli-tools`
 
 ---
@@ -188,7 +188,7 @@ export const CLI_CONFIG = {
   VERSION: '1.0.0',
   NAME: 'TCMA CLI Tools',
   DESCRIPTION: 'Development utilities for TCMA team - Code by Vu Dinh',
-  REPOSITORY: 'https://github.com/tcma-team/tcma-cli-tools.git',
+  REPOSITORY: 'https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
   NPM_PACKAGE: 'tcma-cli-tools',
   NPM_URL: 'https://www.npmjs.com/package/tcma-cli-tools'
 }

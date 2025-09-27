@@ -77,7 +77,7 @@ export abstract class BasePlugin implements Plugin {
    */
   protected showUpdateCommands(): void {
     UIUtils.showCommandSection('Update Commands', [
-      'npm install -g git+https://github.com/tcma-team/tcma-cli-tools.git',
+      'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
       'npm update -g tcma-cli-tools'
     ]);
   }
