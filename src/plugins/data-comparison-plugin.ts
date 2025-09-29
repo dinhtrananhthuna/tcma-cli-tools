@@ -574,6 +574,9 @@ export class DataComparisonPlugin extends BasePlugin {
 
     await csvWriter.writeRecords(exportData);
 
+    // Ensure UTF-8 BOM for better Unicode compatibility (e.g., Excel)
+    this.ensureCsvBom(filePath);
+
     this.log(`Successfully exported ${exportData.length} rows from File B to ${fileName}`, 'success');
     console.log(chalk.green(`File saved at: ${filePath}`));
     console.log(chalk.yellow(`Note: All rows exported using File A field structure with field mapping applied.`));
@@ -591,6 +594,9 @@ export class DataComparisonPlugin extends BasePlugin {
     });
 
     await csvWriter.writeRecords(unmatchedRows);
+
+    // Ensure UTF-8 BOM for better Unicode compatibility (e.g., Excel)
+    this.ensureCsvBom(filePath);
 
     this.log(`Successfully exported ${unmatchedRows.length} unmatched rows to ${fileName}`, 'success');
     console.log(chalk.green(`File saved at: ${filePath}`));
@@ -622,6 +628,9 @@ export class DataComparisonPlugin extends BasePlugin {
 
     await csvWriter.writeRecords(exportData);
 
+    // Ensure UTF-8 BOM for better Unicode compatibility (e.g., Excel)
+    this.ensureCsvBom(filePath);
+
     this.log(`Successfully exported ${exportData.length} rows to ${fileName}`, 'success');
     console.log(chalk.green(`File saved at: ${filePath}`));
   }
@@ -644,6 +653,20 @@ export class DataComparisonPlugin extends BasePlugin {
       await this.startWizard();
     } else {
       await this.showPluginFooter();
+    }
+  }
+
+  private ensureCsvBom(filePath: string): void {
+    try {
+      const content = fs.readFileSync(filePath);
+      const hasBom = content.length >= 3 && content[0] === 0xEF && content[1] === 0xBB && content[2] === 0xBF;
+      if (!hasBom) {
+        const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
+        const withBom = Buffer.concat([bom, content]);
+        fs.writeFileSync(filePath, withBom);
+      }
+    } catch (error) {
+      this.log(`Failed to ensure UTF-8 BOM for CSV: ${error}`, 'warning');
     }
   }
 }
