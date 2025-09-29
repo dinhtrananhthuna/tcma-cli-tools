@@ -118,8 +118,8 @@ export class DataComparisonPlugin extends BasePlugin {
         await this.saveConfigPrompt(comparisonResult.fileAFields || [], comparisonResult.fileBFields || [], fieldMapping);
       }
       
-      // Step 5: Export CSV
-      await this.exportToCSV(comparisonResult.matchedRows, fieldMapping, dataA.headers);
+      // Step 5: Export Choice Logic
+      await this.handleExportChoice(comparisonResult, fieldMapping, dataA, dataB);
       
       // Step 6: Completion and return menu
       await this.showCompletionMenu();
@@ -501,6 +501,82 @@ export class DataComparisonPlugin extends BasePlugin {
     }
 
     return fieldMapping;
+  }
+
+  private async handleExportChoice(comparisonResult: ComparisonResult, fieldMapping: { [key: string]: string }, dataA: FileData, dataB: FileData): Promise<void> {
+    this.showPluginHeader('Export Options');
+    
+    console.log();
+    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(chalk.green('                    EXPORT OPTIONS'));
+    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log();
+    console.log(chalk.white(`📊 Total rows in File B: ${dataB.rows.length}`));
+    console.log(chalk.green(`✅ Matched rows: ${comparisonResult.matchedRows.length}`));
+    console.log(chalk.red(`❌ Unmatched rows: ${comparisonResult.unmatchedRows.length}`));
+    console.log();
+
+    const { exportChoice } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'exportChoice',
+        message: chalk.blue('How would you like to export the data?'),
+        choices: [
+          { 
+            name: `1. Export ONLY matched rows (${comparisonResult.matchedRows.length} rows) with File A field structure`, 
+            value: 'matched-only' 
+          },
+          { 
+            name: `2. Export ALL File B rows (${dataB.rows.length} rows) with File A field structure`, 
+            value: 'all-fileb' 
+          }
+        ]
+      }
+    ]);
+
+    if (exportChoice === 'matched-only') {
+      await this.exportMatchedRows(comparisonResult.matchedRows, fieldMapping, dataA.headers);
+    } else {
+      await this.exportAllFileBRows(dataB.rows, fieldMapping, dataA.headers);
+    }
+  }
+
+  private async exportMatchedRows(matchedRows: any[], fieldMapping: { [key: string]: string }, outputHeaders: string[]): Promise<void> {
+    await this.exportToCSV(matchedRows, fieldMapping, outputHeaders);
+  }
+
+  private async exportAllFileBRows(allFileBRows: any[], fieldMapping: { [key: string]: string }, outputHeaders: string[]): Promise<void> {
+    this.showPluginHeader('Export All File B Rows');
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fileName = `Export_AllFileB-${timestamp}.csv`;
+    const filePath = path.resolve(fileName);
+
+    console.log(chalk.white(`Exporting all ${allFileBRows.length} rows from File B...`));
+    console.log(chalk.white(`Using File A field structure as template...`));
+    console.log();
+
+    // Prepare data for export - map all File B rows to File A structure
+    const exportData = allFileBRows.map(row => {
+      const exportRow: any = {};
+      outputHeaders.forEach(header => {
+        const mappedField = fieldMapping[header];
+        exportRow[header] = row[mappedField] || '';
+      });
+      return exportRow;
+    });
+
+    // Write CSV file
+    const csvWriter = createObjectCsvWriter({
+      path: filePath,
+      header: outputHeaders.map(header => ({ id: header, title: header }))
+    });
+
+    await csvWriter.writeRecords(exportData);
+
+    this.log(`Successfully exported ${exportData.length} rows from File B to ${fileName}`, 'success');
+    console.log(chalk.green(`File saved at: ${filePath}`));
+    console.log(chalk.yellow(`Note: All rows exported using File A field structure with field mapping applied.`));
   }
 
   private async exportUnmatchedRows(unmatchedRows: any[], headers: string[]): Promise<void> {
