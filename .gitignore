@@ -131,3 +131,6 @@ test-results.xml
 
 #sample data
 sample/
+
+# Claude Code documentation
+CLAUDE.md
