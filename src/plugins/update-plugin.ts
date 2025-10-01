@@ -115,7 +115,7 @@ export class UpdatePlugin extends BasePlugin {
       await this.showSystemDiagnostics();
 
       // Check for updates via GitHub API with retro loading
-      UIUtils.showLoading('Checking for updates');
+      await UIUtils.showLoadingAnimation('Checking for updates', 600);
       const updateInfo = await this.checkForUpdates();
 
       if (updateInfo.hasUpdate) {
@@ -568,7 +568,7 @@ export class UpdatePlugin extends BasePlugin {
     ]);
 
     if (rollback) {
-      UIUtils.showLoading('Attempting to rollback to previous version...');
+      await UIUtils.showLoadingAnimation('Attempting to rollback to previous version...', 800);
       
       try {
         // Install the current version (stored in CLI_CONFIG)
@@ -621,7 +621,7 @@ export class UpdatePlugin extends BasePlugin {
       ]);
 
       // Show loading spinner
-      UIUtils.showLoading('Installing update from GitHub...');
+      await UIUtils.showLoadingAnimation('Installing update from GitHub...', 1200);
 
       try {
         // Execute the npm install command

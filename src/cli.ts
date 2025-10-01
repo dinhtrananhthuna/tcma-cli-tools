@@ -11,7 +11,7 @@ import { CLI_CONFIG } from './utils/constants';
 
 // Initialize CLI
 async function initializeCLI() {
-  showWelcome();
+  await showWelcome();
   
   // Initialize plugin manager
   const pluginManager = new PluginManager();
@@ -25,7 +25,7 @@ async function initializeCLI() {
 }
 
 // Retro ASCII Art Welcome
-function showWelcome() {
+async function showWelcome() {
   UIUtils.clearScreen();
   UIUtils.showLogo();
   
@@ -40,6 +40,7 @@ function showWelcome() {
   
   UIUtils.showSeparator('═', 80);
   console.log();
+  await UIUtils.typewriter('Welcome to TCMA CLI Tools');
 }
 
 // Show retro interactive main menu
@@ -81,6 +82,7 @@ async function showMainMenu(pluginManager: PluginManager) {
   const plugin = pluginManager.getPlugin(selectedPlugin);
   if (plugin) {
     try {
+      await UIUtils.showLoadingAnimation('Opening selected tool', 800);
       await plugin.execute('menu');
       
       // Plugin will handle its own footer with Escape key
