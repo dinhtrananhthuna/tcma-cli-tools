@@ -3,6 +3,7 @@ import { UIUtils } from '../utils/ui-utils';
 import { CLI_CONFIG } from '../utils/constants';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import inquirer from 'inquirer';
 
 const execAsync = promisify(exec);
 
@@ -30,12 +31,31 @@ export class UpdatePlugin extends BasePlugin {
         UIUtils.showSuccess('Update available!');
         UIUtils.showInfoSection('Latest Version', [updateInfo.latestVersion]);
 
-        UIUtils.showCommandSection('Update Instructions', [
-          '1. Run: npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
-          '2. Or run: npm update -g tcma-cli-tools'
+        // Show release notes if available
+        if (updateInfo.releaseInfo?.body) {
+          UIUtils.showInfoSection('Release Notes', [updateInfo.releaseInfo.body.trim().substring(0, 500) + (updateInfo.releaseInfo.body.length > 500 ? '...' : '')]);
+        }
+
+        // Ask user if they want to update
+        const { shouldUpdate } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'shouldUpdate',
+            message: `Would you like to update to version ${updateInfo.latestVersion}?`,
+            default: true
+          }
         ]);
 
-        UIUtils.showNote('Make sure to backup your configuration before updating.');
+        if (shouldUpdate) {
+          await this.performUpdate(updateInfo.latestVersion);
+        } else {
+          UIUtils.showInfoSection('Status', ['Update cancelled.']);
+
+          // Show manual update commands anyway
+          UIUtils.showCommandSection('Manual Update Commands', [
+            'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git'
+          ]);
+        }
       } else {
         UIUtils.showSuccess('You are running the latest version!');
         UIUtils.showInfoSection('Status', ['No updates available at this time.']);
@@ -157,5 +177,103 @@ export class UpdatePlugin extends BasePlugin {
     }
 
     return 0;
+  }
+
+  /**
+   * Perform the update installation
+   */
+  private async performUpdate(targetVersion: string): Promise<void> {
+    try {
+      UIUtils.showInfoSection('Update Status', [
+        `Updating to version ${targetVersion}...`,
+        'This may take a few moments.',
+        '',
+        '⚠️  Please do not interrupt this process.'
+      ]);
+
+      // Show loading spinner
+      UIUtils.showLoading('Installing update from GitHub...');
+
+      try {
+        // Execute the npm install command
+        const { stdout, stderr } = await execAsync('npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git', {
+          timeout: 120000, // 2 minute timeout
+          maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+        });
+
+        // Clear loading spinner
+        console.log();
+
+        // Show success message
+        UIUtils.showSuccess('✅ Update completed successfully!');
+
+        UIUtils.showInfoSection('Installation Details', [
+          `New version: ${targetVersion}`,
+          'Source: GitHub repository',
+          '',
+          '🔄 Please restart the CLI to use the new version.',
+          '',
+          'You can restart by:',
+          '1. Closing this process (Ctrl+C or ESC)',
+          '2. Running: tcmatools'
+        ]);
+
+        // Show any npm output if relevant
+        if (stdout && stdout.trim()) {
+          UIUtils.showInfoSection('Installation Output', [stdout.trim().substring(0, 1000)]);
+        }
+
+      } catch (installError: any) {
+        // Clear loading spinner
+        console.log();
+
+        UIUtils.showError('❌ Update installation failed!');
+
+        // Handle specific error cases
+        let errorMessage = 'Unknown error occurred';
+        if (installError.code === 'ETIMEDOUT') {
+          errorMessage = 'Installation timed out (2 minutes). Please try again.';
+        } else if (installError.code === 'EACCES') {
+          errorMessage = 'Permission denied. Try running with sudo or check npm permissions.';
+        } else if (installError.code === 'ENOENT') {
+          errorMessage = 'npm command not found. Please ensure npm is installed.';
+        } else if (installError.stderr && installError.stderr.includes('permission')) {
+          errorMessage = 'Permission denied. You may need administrator privileges.';
+        } else if (installError.message) {
+          errorMessage = installError.message;
+        }
+
+        UIUtils.showInfoSection('Error Details', [errorMessage]);
+
+        // Show manual installation instructions
+        UIUtils.showCommandSection('Manual Installation Required', [
+          'Please run the following command manually:',
+          '',
+          `npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git`,
+          '',
+          'If the issue persists, check:',
+          '1. Your internet connection',
+          '2. npm permissions: npm config get prefix',
+          '3. GitHub repository access'
+        ]);
+
+        // Show stderr if available
+        if (installError.stderr && installError.stderr.trim()) {
+          UIUtils.showInfoSection('Error Output', [installError.stderr.trim().substring(0, 1000)]);
+        }
+
+        this.log(`Installation failed: ${errorMessage}`, 'error');
+      }
+
+    } catch (error) {
+      console.log();
+      UIUtils.showError('Unexpected error during update process');
+      this.log(`Unexpected error: ${error}`, 'error');
+
+      UIUtils.showCommandSection('Manual Update Required', [
+        'Please run manually:',
+        'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git'
+      ]);
+    }
   }
 }
