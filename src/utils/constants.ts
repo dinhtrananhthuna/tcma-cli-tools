@@ -19,5 +19,47 @@ export const COLORS = {
   ERROR: 'red',
   INFO: 'blue',
   TEXT: 'white',
-  MUTED: 'gray'
+  MUTED: 'gray',
+  RETRO: {
+    CYAN: 'cyan',
+    MAGENTA: 'magenta',
+    YELLOW: 'yellow',
+    GREEN: 'green',
+    BLUE: 'blue',
+    RED: 'red',
+    WHITE: 'white',
+    GRAY: 'gray'
+  }
+} as const;
+
+export const RETRO_SYMBOLS = {
+  BORDER: {
+    TOP_LEFT: '╔',
+    TOP_RIGHT: '╗',
+    BOTTOM_LEFT: '╚',
+    BOTTOM_RIGHT: '╝',
+    HORIZONTAL: '═',
+    VERTICAL: '║',
+    HORIZONTAL_THIN: '─',
+    VERTICAL_THIN: '│'
+  },
+  ICONS: {
+    SUCCESS: '[+]',
+    ERROR: '[X]',
+    WARNING: '[!]',
+    INFO: '[*]',
+    LOADING: '[*]',
+    ROCKET: '[*]',
+    GEAR: '[#]',
+    FOLDER: '[D]',
+    FILE: '[F]',
+    ARROW: '->',
+    STAR: '[*]',
+    HEART: '<3'
+  },
+  PROGRESS: {
+    FILLED: '█',
+    EMPTY: '░',
+    HALF: '▓'
+  }
 } as const;

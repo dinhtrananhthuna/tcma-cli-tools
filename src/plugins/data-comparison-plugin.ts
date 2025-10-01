@@ -41,17 +41,18 @@ export class DataComparisonPlugin extends BasePlugin {
   private async showMainMenu(): Promise<void> {
     this.showPluginHeader('Data Comparison & Mapping Tool');
     
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log(chalk.green('                    Welcome to Data Comparison & Mapping Tool'));
-    console.log(chalk.yellow('                    Compare and map data between CSV/Excel files'));
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    // Show retro welcome message
+    console.log(chalk.cyan.bold('┌─ WELCOME ─┐'));
+    console.log(chalk.cyan.bold('│ Welcome to Data Comparison & Mapping Tool    │'));
+    console.log(chalk.cyan.bold('│ Compare and map data between CSV/Excel files │'));
+    console.log(chalk.cyan.bold('└' + '─'.repeat(46) + '┘'));
     console.log();
 
     const { action } = await inquirer.prompt([
       {
         type: 'list',
         name: 'action',
-        message: chalk.blue('What would you like to do?'),
+        message: chalk.cyan.bold('[*] What would you like to do?'),
         choices: [
           { name: '1. Start Data Comparison Wizard', value: 'start' },
           { name: '2. Exit to Main Menu', value: 'exit' }
@@ -238,18 +239,18 @@ export class DataComparisonPlugin extends BasePlugin {
         const configData = fs.readFileSync(configPath, 'utf8');
         const config = JSON.parse(configData) as ComparisonConfig;
         
-        // Display config info
+        // Display config info with retro styling
         console.log();
-        console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-        console.log(chalk.green('                    FOUND EXISTING CONFIG'));
-        console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+        UIUtils.showSectionHeader('FOUND EXISTING CONFIG');
         console.log();
-        console.log(chalk.white(`📅 Created: ${config.createdAt}`));
+        console.log(chalk.cyan.bold('┌─ CONFIG DETAILS ─┐'));
+        console.log(chalk.cyan.bold(`│ [*] Created: ${config.createdAt.padEnd(60)} │`));
         if (config.description) {
-          console.log(chalk.white(`📝 Description: ${config.description}`));
+          console.log(chalk.cyan.bold(`│ [*] Description: ${config.description.padEnd(58)} │`));
         }
-        console.log(chalk.white(`🔍 File A fields: ${config.fileAFields.join(', ')}`));
-        console.log(chalk.white(`🔍 File B fields: ${config.fileBFields.join(', ')}`));
+        console.log(chalk.cyan.bold(`│ [*] File A fields: ${config.fileAFields.join(', ').padEnd(55)} │`));
+        console.log(chalk.cyan.bold(`│ [*] File B fields: ${config.fileBFields.join(', ').padEnd(55)} │`));
+        console.log(chalk.cyan.bold('└' + '─'.repeat(64) + '┘'));
         console.log();
         
         return config;
@@ -342,10 +343,10 @@ export class DataComparisonPlugin extends BasePlugin {
     console.log(chalk.green('                    COMPARISON RESULTS'));
     console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
     console.log();
-    console.log(chalk.white(`📊 File A (Reference): ${dataA.rows.length} rows`));
-    console.log(chalk.white(`📊 File B (Extraction): ${dataB.rows.length} rows`));
-    console.log(chalk.green(`✅ Matched rows: ${matchedRows.length} rows`));
-    console.log(chalk.red(`❌ Unmatched rows: ${unmatchedRows.length} rows`));
+    console.log(chalk.white(`[*] File A (Reference): ${dataA.rows.length} rows`));
+    console.log(chalk.white(`[*] File B (Extraction): ${dataB.rows.length} rows`));
+    console.log(chalk.green(`[+] Matched rows: ${matchedRows.length} rows`));
+    console.log(chalk.red(`[X] Unmatched rows: ${unmatchedRows.length} rows`));
     console.log();
 
     // Ask if user wants to export unmatched rows
@@ -442,10 +443,10 @@ export class DataComparisonPlugin extends BasePlugin {
     console.log(chalk.green('                    COMPARISON RESULTS'));
     console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
     console.log();
-    console.log(chalk.white(`📊 File A (Reference): ${dataA.rows.length} rows`));
-    console.log(chalk.white(`📊 File B (Extraction): ${dataB.rows.length} rows`));
-    console.log(chalk.green(`✅ Matched rows: ${matchedRows.length} rows`));
-    console.log(chalk.red(`❌ Unmatched rows: ${unmatchedRows.length} rows`));
+    console.log(chalk.white(`[*] File A (Reference): ${dataA.rows.length} rows`));
+    console.log(chalk.white(`[*] File B (Extraction): ${dataB.rows.length} rows`));
+    console.log(chalk.green(`[+] Matched rows: ${matchedRows.length} rows`));
+    console.log(chalk.red(`[X] Unmatched rows: ${unmatchedRows.length} rows`));
     console.log();
 
     // Ask if user wants to export unmatched rows
@@ -511,9 +512,9 @@ export class DataComparisonPlugin extends BasePlugin {
     console.log(chalk.green('                    EXPORT OPTIONS'));
     console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
     console.log();
-    console.log(chalk.white(`📊 Total rows in File B: ${dataB.rows.length}`));
-    console.log(chalk.green(`✅ Matched rows: ${comparisonResult.matchedRows.length}`));
-    console.log(chalk.red(`❌ Unmatched rows: ${comparisonResult.unmatchedRows.length}`));
+    console.log(chalk.white(`[*] Total rows in File B: ${dataB.rows.length}`));
+    console.log(chalk.green(`[+] Matched rows: ${comparisonResult.matchedRows.length}`));
+    console.log(chalk.red(`[X] Unmatched rows: ${comparisonResult.unmatchedRows.length}`));
     console.log();
 
     const { exportChoice } = await inquirer.prompt([

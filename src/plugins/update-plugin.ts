@@ -108,13 +108,13 @@ export class UpdatePlugin extends BasePlugin {
     this.showPluginHeader('Update Tool');
 
     try {
-      // Show current version
+      // Show current version with retro styling
       UIUtils.showInfoSection('Current Version', [CLI_CONFIG.VERSION]);
 
       // Show system diagnostics
       await this.showSystemDiagnostics();
 
-      // Check for updates via GitHub API
+      // Check for updates via GitHub API with retro loading
       UIUtils.showLoading('Checking for updates');
       const updateInfo = await this.checkForUpdates();
 
@@ -122,17 +122,18 @@ export class UpdatePlugin extends BasePlugin {
         UIUtils.showSuccess('Update available!');
         UIUtils.showInfoSection('Latest Version', [updateInfo.latestVersion]);
 
-        // Show release notes if available
+        // Show release notes if available with retro styling
         if (updateInfo.releaseInfo?.body) {
-          UIUtils.showInfoSection('Release Notes', [updateInfo.releaseInfo.body.trim().substring(0, 500) + (updateInfo.releaseInfo.body.length > 500 ? '...' : '')]);
+          const releaseNotes = updateInfo.releaseInfo.body.trim().substring(0, 500) + (updateInfo.releaseInfo.body.length > 500 ? '...' : '');
+          UIUtils.showInfoSection('Release Notes', [releaseNotes]);
         }
 
-        // Ask user if they want to update
+        // Ask user if they want to update with retro styling
         const { shouldUpdate } = await inquirer.prompt([
           {
             type: 'confirm',
             name: 'shouldUpdate',
-            message: `Would you like to update to version ${updateInfo.latestVersion}?`,
+            message: chalk.cyan.bold(`[*] Would you like to update to version ${updateInfo.latestVersion}?`),
             default: true
           }
         ]);
@@ -142,7 +143,7 @@ export class UpdatePlugin extends BasePlugin {
         } else {
           UIUtils.showInfoSection('Status', ['Update cancelled.']);
 
-          // Show manual update commands anyway
+          // Show manual update commands anyway with retro styling
           UIUtils.showCommandSection('Manual Update Commands', [
             'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git'
           ]);
@@ -310,7 +311,7 @@ export class UpdatePlugin extends BasePlugin {
       `Updating to version ${targetVersion} with sudo...`,
       'You may be prompted for your password.',
       '',
-      '⚠️  Please do not interrupt this process.'
+      '[!] Please do not interrupt this process.'
     ]);
 
     try {
@@ -339,26 +340,26 @@ export class UpdatePlugin extends BasePlugin {
       const updateSuccess = await this.verifyUpdate(targetVersion);
       
       if (updateSuccess) {
-        UIUtils.showSuccess('✅ Update completed successfully with sudo!');
+        UIUtils.showSuccess('[+] Update completed successfully with sudo!');
         
         UIUtils.showInfoSection('Installation Details', [
           `New version: ${targetVersion}`,
           'Source: GitHub repository (via sudo)',
           '',
-          '🔄 Please restart the CLI to use the new version.',
+          '[*] Please restart the CLI to use the new version.',
           '',
           'You can restart by:',
           '1. Closing this process (Ctrl+C or ESC)',
           '2. Running: tcmatools'
         ]);
       } else {
-        UIUtils.showError('❌ Update verification failed!');
+        UIUtils.showError('[X] Update verification failed!');
         await this.showManualInstructions();
       }
       
     } catch (error) {
       console.log();
-      UIUtils.showError('❌ Sudo update failed!');
+      UIUtils.showError('[X] Sudo update failed!');
       this.log(`Sudo update error: ${error}`, 'error');
       await this.showPermissionSolutions({ hasPermission: false, needsSudo: true, npmPrefix: '' });
     }
@@ -578,16 +579,16 @@ export class UpdatePlugin extends BasePlugin {
           maxBuffer: 1024 * 1024 * 10
         });
 
-        UIUtils.showSuccess('✅ Rollback completed successfully!');
+        UIUtils.showSuccess('[+] Rollback completed successfully!');
         UIUtils.showInfoSection('Rollback Details', [
           `Rolled back to version: ${CLI_CONFIG.VERSION}`,
           'The previous version has been restored.',
           '',
-          '🔄 Please restart the CLI to use the restored version.'
+          '[*] Please restart the CLI to use the restored version.'
         ]);
         
       } catch (rollbackError) {
-        UIUtils.showError('❌ Rollback failed!');
+        UIUtils.showError('[X] Rollback failed!');
         this.log(`Rollback failed: ${rollbackError}`, 'error');
         
         UIUtils.showCommandSection('Manual Rollback Required', [
@@ -616,7 +617,7 @@ export class UpdatePlugin extends BasePlugin {
         `Updating to version ${targetVersion}...`,
         'This may take a few moments.',
         '',
-        '⚠️  Please do not interrupt this process.'
+        '[!] Please do not interrupt this process.'
       ]);
 
       // Show loading spinner
@@ -636,13 +637,13 @@ export class UpdatePlugin extends BasePlugin {
         const updateSuccess = await this.verifyUpdate(targetVersion);
         
         if (updateSuccess) {
-          UIUtils.showSuccess('✅ Update completed successfully!');
+          UIUtils.showSuccess('[+] Update completed successfully!');
 
           UIUtils.showInfoSection('Installation Details', [
             `New version: ${targetVersion}`,
             'Source: GitHub repository',
             '',
-            '🔄 Please restart the CLI to use the new version.',
+            '[*] Please restart the CLI to use the new version.',
             '',
             'You can restart by:',
             '1. Closing this process (Ctrl+C or ESC)',
@@ -654,7 +655,7 @@ export class UpdatePlugin extends BasePlugin {
             UIUtils.showInfoSection('Installation Output', [stdout.trim().substring(0, 1000)]);
           }
         } else {
-          UIUtils.showError('❌ Update verification failed!');
+          UIUtils.showError('[X] Update verification failed!');
           await this.rollbackUpdate();
         }
 
@@ -662,7 +663,7 @@ export class UpdatePlugin extends BasePlugin {
         // Clear loading spinner
         console.log();
 
-        UIUtils.showError('❌ Update installation failed!');
+        UIUtils.showError('[X] Update installation failed!');
 
         // Enhanced error handling
         const errorInfo = this.categorizeError(installError);

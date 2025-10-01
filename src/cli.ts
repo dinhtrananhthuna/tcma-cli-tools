@@ -24,21 +24,30 @@ async function initializeCLI() {
   await showMainMenu(pluginManager);
 }
 
-// ASCII Art Welcome
+// Retro ASCII Art Welcome
 function showWelcome() {
   UIUtils.clearScreen();
-  UIUtils.showTitle('TCMA CLI');
+  UIUtils.showLogo();
   
-  console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-  console.log(chalk.green(`                    Welcome to ${CLI_CONFIG.NAME} v${CLI_CONFIG.VERSION}`));
-  console.log(chalk.green(`                    ${CLI_CONFIG.DESCRIPTION}`));
-  console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+  console.log();
+  UIUtils.showSectionHeader('WELCOME');
+  
+  console.log(chalk.cyan.bold(`┌─ SYSTEM INFO ─┐`));
+  console.log(chalk.cyan.bold(`│ ${CLI_CONFIG.NAME} v${CLI_CONFIG.VERSION}`));
+  console.log(chalk.cyan.bold(`│ ${CLI_CONFIG.DESCRIPTION}`));
+  console.log(chalk.cyan.bold(`└${'─'.repeat(60)}┘`));
+  console.log();
+  
+  UIUtils.showSeparator('═', 80);
   console.log();
 }
 
-// Show interactive main menu
+// Show retro interactive main menu
 async function showMainMenu(pluginManager: PluginManager) {
   const plugins = pluginManager.getAllPlugins();
+  
+  // Show menu header
+  UIUtils.showSectionHeader('MAIN MENU');
   
   const choices = plugins.map((plugin, index) => ({
     name: `${index + 1}. ${plugin.name}`,
@@ -57,7 +66,7 @@ async function showMainMenu(pluginManager: PluginManager) {
     {
       type: 'list',
       name: 'selectedPlugin',
-      message: chalk.blue('Select a tool to run:'),
+      message: chalk.cyan.bold('[*] Select a tool to run:'),
       choices: choices,
       pageSize: 10
     }
@@ -79,22 +88,23 @@ async function showMainMenu(pluginManager: PluginManager) {
       // Return to main menu
       await showMainMenu(pluginManager);
     } catch (error) {
-      console.error(chalk.red('Error executing plugin:'), error);
-      console.log(chalk.yellow('Press ESC to return to main menu...'));
+      console.error(chalk.red.bold('[X] Error executing plugin:'), error);
+      UIUtils.showEscapeMessage();
       await UIUtils.waitForEscape();
       await showMainMenu(pluginManager);
     }
   }
 }
 
-// Handle Ctrl+C gracefully
+// Handle Ctrl+C gracefully with retro styling
 process.on('SIGINT', () => {
-  console.log(chalk.yellow('\n\nGoodbye! Thanks for using TCMA CLI Tools.'));
+  console.log();
+  UIUtils.showGoodbye();
   process.exit(0);
 });
 
-// Start CLI
+// Start CLI with retro initialization
 initializeCLI().catch((error) => {
-  console.error(chalk.red('Failed to initialize CLI:'), error.message);
+  console.error(chalk.red.bold('[X] Failed to initialize CLI:'), error.message);
   process.exit(1);
 });
