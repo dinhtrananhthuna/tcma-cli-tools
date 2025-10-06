@@ -1,0 +1,9 @@
+twitterDetails_postId,twitterDetails_postContent,twitterDetails_showcaseLink,twitterDetails_postDate,id,contentMainId
+101,"Hello World Tweet","https://twitter.com/1",2024-01-01,1,1001
+102,"Test Post Tweet","https://twitter.com/2",2024-01-02,2,1002
+106,"New Post Tweet","https://twitter.com/6",2024-01-06,6,1006
+103,"Sample Content Tweet","https://twitter.com/3",2024-01-03,3,1003
+107,"Another New Post","https://twitter.com/7",2024-01-07,7,1007
+104,"Another Post Tweet","https://twitter.com/4",2024-01-04,4,1004
+108,"Extra Post","https://twitter.com/8",2024-01-08,8,1008
+105,"Final Test Tweet","https://twitter.com/5",2024-01-05,5,1005

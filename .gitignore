@@ -129,8 +129,6 @@ test-results.xml
 # Local development
 .local/
 
-#sample data
-sample/
 
 # Claude Code documentation
 CLAUDE.md
