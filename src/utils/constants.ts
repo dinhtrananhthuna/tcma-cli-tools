@@ -1,20 +1,20 @@
 export const CLI_CONFIG = {
-  VERSION: '1.3.1',
+  VERSION: '1.3.2',
   NAME: 'TCMA CLI Tools',
   DESCRIPTION: 'Development utilities for TCMA team - Code by Vu Dinh',
   REPOSITORY: 'https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
   NPM_PACKAGE: 'tcma-cli-tools',
-  NPM_URL: 'https://www.npmjs.com/package/tcma-cli-tools'
+  NPM_URL: 'https://www.npmjs.com/package/tcma-cli-tools',
 } as const;
 
 export const COMMANDS = {
   UPDATE: 'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
-  UPDATE_NPM: 'npm update -g tcma-cli-tools'
+  UPDATE_NPM: 'npm update -g tcma-cli-tools',
 } as const;
 
 export const COLORS = {
   PRIMARY: 'cyan',
-  SECONDARY: 'green', 
+  SECONDARY: 'green',
   WARNING: 'yellow',
   ERROR: 'red',
   INFO: 'blue',
@@ -28,8 +28,8 @@ export const COLORS = {
     BLUE: 'blue',
     RED: 'red',
     WHITE: 'white',
-    GRAY: 'gray'
-  }
+    GRAY: 'gray',
+  },
 } as const;
 
 export const RETRO_SYMBOLS = {
@@ -41,7 +41,7 @@ export const RETRO_SYMBOLS = {
     HORIZONTAL: '═',
     VERTICAL: '║',
     HORIZONTAL_THIN: '─',
-    VERTICAL_THIN: '│'
+    VERTICAL_THIN: '│',
   },
   ICONS: {
     SUCCESS: '[+]',
@@ -55,11 +55,11 @@ export const RETRO_SYMBOLS = {
     FILE: '[F]',
     ARROW: '->',
     STAR: '[*]',
-    HEART: '<3'
+    HEART: '<3',
   },
   PROGRESS: {
     FILLED: '█',
     EMPTY: '░',
-    HALF: '▓'
-  }
+    HALF: '▓',
+  },
 } as const;

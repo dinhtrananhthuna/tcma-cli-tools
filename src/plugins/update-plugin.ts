@@ -30,7 +30,7 @@ export class UpdatePlugin extends BasePlugin {
   description = 'Update TCMA CLI Tools to latest version';
   commands = ['update', 'u'];
 
-  async execute(command: string, args?: string[]): Promise<void> {
+  async execute(_command: string, _args?: string[]): Promise<void> {
     await this.showUpdateMenu();
   }
 
@@ -43,14 +43,14 @@ export class UpdatePlugin extends BasePlugin {
       const { stdout: npmVersion } = await execAsync('npm --version');
       const { stdout: npmPrefix } = await execAsync('npm config get prefix');
       const { stdout: whoami } = await execAsync('whoami');
-      
+
       return {
         platform: process.platform,
         nodeVersion: nodeVersion.trim(),
         npmVersion: npmVersion.trim(),
         npmPrefix: npmPrefix.trim(),
         currentUser: whoami.trim(),
-        isRoot: whoami.trim() === 'root'
+        isRoot: whoami.trim() === 'root',
       };
     } catch (error) {
       this.log(`Failed to get system info: ${error}`, 'warning');
@@ -60,7 +60,7 @@ export class UpdatePlugin extends BasePlugin {
         npmVersion: 'unknown',
         npmPrefix: 'unknown',
         currentUser: 'unknown',
-        isRoot: false
+        isRoot: false,
       };
     }
   }
@@ -70,14 +70,14 @@ export class UpdatePlugin extends BasePlugin {
    */
   private async showSystemDiagnostics(): Promise<void> {
     const systemInfo = await this.getSystemInfo();
-    
+
     UIUtils.showInfoSection('System Diagnostics', [
       `Platform: ${systemInfo.platform}`,
       `Node.js: ${systemInfo.nodeVersion}`,
       `NPM: ${systemInfo.npmVersion}`,
       `NPM Prefix: ${systemInfo.npmPrefix}`,
       `Current User: ${systemInfo.currentUser}`,
-      `Is Root: ${systemInfo.isRoot ? 'Yes' : 'No'}`
+      `Is Root: ${systemInfo.isRoot ? 'Yes' : 'No'}`,
     ]);
   }
 
@@ -88,7 +88,7 @@ export class UpdatePlugin extends BasePlugin {
     try {
       const { stdout: npmPrefix } = await execAsync('npm config get prefix');
       const prefixPath = npmPrefix.trim();
-      
+
       // Check if we can write to npm prefix
       const testPath = path.join(prefixPath, 'test-permission-' + Date.now());
       try {
@@ -124,7 +124,9 @@ export class UpdatePlugin extends BasePlugin {
 
         // Show release notes if available with retro styling
         if (updateInfo.releaseInfo?.body) {
-          const releaseNotes = updateInfo.releaseInfo.body.trim().substring(0, 500) + (updateInfo.releaseInfo.body.length > 500 ? '...' : '');
+          const releaseNotes =
+            updateInfo.releaseInfo.body.trim().substring(0, 500) +
+            (updateInfo.releaseInfo.body.length > 500 ? '...' : '');
           UIUtils.showInfoSection('Release Notes', [releaseNotes]);
         }
 
@@ -133,9 +135,11 @@ export class UpdatePlugin extends BasePlugin {
           {
             type: 'confirm',
             name: 'shouldUpdate',
-            message: chalk.cyan.bold(`[*] Would you like to update to version ${updateInfo.latestVersion}?`),
-            default: true
-          }
+            message: chalk.cyan.bold(
+              `[*] Would you like to update to version ${updateInfo.latestVersion}?`
+            ),
+            default: true,
+          },
         ]);
 
         if (shouldUpdate) {
@@ -145,7 +149,7 @@ export class UpdatePlugin extends BasePlugin {
 
           // Show manual update commands anyway with retro styling
           UIUtils.showCommandSection('Manual Update Commands', [
-            'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git'
+            'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
           ]);
         }
       } else {
@@ -159,9 +163,8 @@ export class UpdatePlugin extends BasePlugin {
       // Show update sources
       UIUtils.showInfoSection('Update Sources', [
         `GitHub: ${CLI_CONFIG.REPOSITORY}`,
-        `NPM: ${CLI_CONFIG.NPM_URL}`
+        `NPM: ${CLI_CONFIG.NPM_URL}`,
       ]);
-
     } catch (error) {
       UIUtils.showError('Error checking for updates');
       this.log(`Error: ${error}`, 'error');
@@ -173,10 +176,16 @@ export class UpdatePlugin extends BasePlugin {
   /**
    * Check for updates via GitHub API
    */
-  private async checkForUpdates(): Promise<{ hasUpdate: boolean; latestVersion: string; releaseInfo?: any }> {
+  private async checkForUpdates(): Promise<{
+    hasUpdate: boolean;
+    latestVersion: string;
+    releaseInfo?: any;
+  }> {
     try {
       // Get latest release from GitHub API
-      const response = await this.fetchFromGitHub('https://api.github.com/repos/dinhtrananhthuna/tcma-cli-tools/releases/latest');
+      const response = await this.fetchFromGitHub(
+        'https://api.github.com/repos/dinhtrananhthuna/tcma-cli-tools/releases/latest'
+      );
 
       if (!response.ok) {
         throw new Error(`GitHub API error: ${response.status}`);
@@ -190,14 +199,14 @@ export class UpdatePlugin extends BasePlugin {
       return {
         hasUpdate: this.compareVersions(latestVersion, CLI_CONFIG.VERSION) > 0,
         latestVersion,
-        releaseInfo: release
+        releaseInfo: release,
       };
     } catch (error) {
       this.log(`Failed to check updates: ${error}`, 'warning');
       // Fallback to current version if API fails
       return {
         hasUpdate: false,
-        latestVersion: CLI_CONFIG.VERSION
+        latestVersion: CLI_CONFIG.VERSION,
       };
     }
   }
@@ -217,20 +226,20 @@ export class UpdatePlugin extends BasePlugin {
         method: 'GET',
         headers: {
           'User-Agent': `${CLI_CONFIG.NAME}/${CLI_CONFIG.VERSION}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
+          Accept: 'application/vnd.github.v3+json',
+        },
       };
 
-      const req = https.request(options, (res) => {
+      const req = https.request(options, res => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', chunk => (data += chunk));
         res.on('end', () => {
           // Create a Response-like object
           resolve({
             ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
             status: res.statusCode ?? 0,
             json: async () => JSON.parse(data),
-            text: async () => data
+            text: async () => data,
           } as Response);
         });
       });
@@ -250,7 +259,8 @@ export class UpdatePlugin extends BasePlugin {
    */
   private compareVersions(v1: string, v2: string): number {
     const normalize = (version: string): number[] => {
-      return version.split('.')
+      return version
+        .split('.')
         .map(part => parseInt(part.replace(/[^0-9]/g, ''), 10))
         .filter(part => !isNaN(part));
     };
@@ -274,14 +284,17 @@ export class UpdatePlugin extends BasePlugin {
   /**
    * Handle permission denied scenario
    */
-  private async handlePermissionDenied(targetVersion: string, permissionCheck: PermissionCheck): Promise<void> {
+  private async handlePermissionDenied(
+    targetVersion: string,
+    permissionCheck: PermissionCheck
+  ): Promise<void> {
     const platform = process.platform;
-    
+
     if (platform === 'linux' || platform === 'darwin') {
       UIUtils.showInfoSection('Permission Issue Detected', [
         `NPM prefix (${permissionCheck.npmPrefix}) is not writable by current user.`,
         '',
-        'This is a common issue on Unix-like systems.'
+        'This is a common issue on Unix-like systems.',
       ]);
 
       const { useSudo } = await inquirer.prompt([
@@ -289,16 +302,16 @@ export class UpdatePlugin extends BasePlugin {
           type: 'confirm',
           name: 'useSudo',
           message: chalk.yellow('Would you like to try updating with sudo?'),
-          default: true
-        }
+          default: true,
+        },
       ]);
-      
+
       if (useSudo) {
         await this.performSudoUpdate(targetVersion);
         return;
       }
     }
-    
+
     // Show alternative solutions
     await this.showPermissionSolutions(permissionCheck);
   }
@@ -311,19 +324,21 @@ export class UpdatePlugin extends BasePlugin {
       `Updating to version ${targetVersion} with sudo...`,
       'You may be prompted for your password.',
       '',
-      '[!] Please do not interrupt this process.'
+      '[!] Please do not interrupt this process.',
     ]);
 
     try {
-      const command = 'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git';
-      
       // Use spawn instead of exec for better sudo handling
-      const child = spawn('sudo', ['npm', 'install', '-g', 'git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git'], {
-        stdio: 'inherit'
-      });
+      const child = spawn(
+        'sudo',
+        ['npm', 'install', '-g', 'git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git'],
+        {
+          stdio: 'inherit',
+        }
+      );
 
       await new Promise<void>((resolve, reject) => {
-        child.on('close', (code) => {
+        child.on('close', code => {
           if (code === 0) {
             resolve();
           } else {
@@ -331,17 +346,17 @@ export class UpdatePlugin extends BasePlugin {
           }
         });
 
-        child.on('error', (error) => {
+        child.on('error', error => {
           reject(error);
         });
       });
 
       // Verify the update
       const updateSuccess = await this.verifyUpdate(targetVersion);
-      
+
       if (updateSuccess) {
         UIUtils.showSuccess('[+] Update completed successfully with sudo!');
-        
+
         UIUtils.showInfoSection('Installation Details', [
           `New version: ${targetVersion}`,
           'Source: GitHub repository (via sudo)',
@@ -350,13 +365,12 @@ export class UpdatePlugin extends BasePlugin {
           '',
           'You can restart by:',
           '1. Closing this process (Ctrl+C or ESC)',
-          '2. Running: tcmatools'
+          '2. Running: tcmatools',
         ]);
       } else {
         UIUtils.showError('[X] Update verification failed!');
         await this.showManualInstructions();
       }
-      
     } catch (error) {
       console.log();
       UIUtils.showError('[X] Sudo update failed!');
@@ -368,7 +382,7 @@ export class UpdatePlugin extends BasePlugin {
   /**
    * Show permission solutions
    */
-  private async showPermissionSolutions(permissionCheck: PermissionCheck): Promise<void> {
+  private async showPermissionSolutions(_permissionCheck: PermissionCheck): Promise<void> {
     const solutions = [
       {
         title: 'Fix NPM Permissions (Recommended)',
@@ -376,8 +390,8 @@ export class UpdatePlugin extends BasePlugin {
         commands: [
           'sudo chown -R $(whoami) ~/.npm',
           'sudo chown -R $(whoami) /usr/local/lib/node_modules',
-          'sudo chown -R $(whoami) /usr/local/bin'
-        ]
+          'sudo chown -R $(whoami) /usr/local/bin',
+        ],
       },
       {
         title: 'Configure NPM for User Directory',
@@ -386,8 +400,8 @@ export class UpdatePlugin extends BasePlugin {
           'mkdir ~/.npm-global',
           'npm config set prefix "~/.npm-global"',
           'echo "export PATH=~/.npm-global/bin:$PATH" >> ~/.bashrc',
-          'source ~/.bashrc'
-        ]
+          'source ~/.bashrc',
+        ],
       },
       {
         title: 'Use Node Version Manager (NVM)',
@@ -395,13 +409,13 @@ export class UpdatePlugin extends BasePlugin {
         commands: [
           'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash',
           'nvm install node',
-          'nvm use node'
-        ]
-      }
+          'nvm use node',
+        ],
+      },
     ];
 
     UIUtils.showInfoSection('Permission Solutions', [
-      'Choose one of the following solutions to fix npm permissions:'
+      'Choose one of the following solutions to fix npm permissions:',
     ]);
 
     const { solution } = await inquirer.prompt([
@@ -410,15 +424,15 @@ export class UpdatePlugin extends BasePlugin {
         name: 'solution',
         message: chalk.blue('Select a solution:'),
         choices: [
-          ...solutions.map((s, i) => ({ 
-            name: `${i + 1}. ${s.title}`, 
+          ...solutions.map((s, i) => ({
+            name: `${i + 1}. ${s.title}`,
             value: i,
-            short: s.title
+            short: s.title,
           })),
           { name: '4. Show manual commands only', value: 'manual' },
-          { name: '5. Return to main menu', value: 'exit' }
-        ]
-      }
+          { name: '5. Return to main menu', value: 'exit' },
+        ],
+      },
     ]);
 
     if (solution === 'exit') {
@@ -440,7 +454,7 @@ export class UpdatePlugin extends BasePlugin {
       'Commands to run:',
       ...solution.commands.map((cmd: string) => `  ${cmd}`),
       '',
-      'After running these commands, try updating again.'
+      'After running these commands, try updating again.',
     ]);
 
     const { proceed } = await inquirer.prompt([
@@ -448,8 +462,8 @@ export class UpdatePlugin extends BasePlugin {
         type: 'confirm',
         name: 'proceed',
         message: chalk.yellow('Would you like to try updating again?'),
-        default: false
-      }
+        default: false,
+      },
     ]);
 
     if (proceed) {
@@ -473,7 +487,7 @@ export class UpdatePlugin extends BasePlugin {
       'If the issue persists, check:',
       '1. Your internet connection',
       '2. npm permissions: npm config get prefix',
-      '3. GitHub repository access'
+      '3. GitHub repository access',
     ]);
   }
 
@@ -483,21 +497,26 @@ export class UpdatePlugin extends BasePlugin {
   private async verifyUpdate(targetVersion: string): Promise<boolean> {
     try {
       // Try to get version from the CLI
-      const { stdout: currentVersion } = await execAsync('tcmatools --version 2>/dev/null || echo "unknown"', {
-        timeout: 5000
-      });
-      
+      const { stdout: currentVersion } = await execAsync(
+        'tcmatools --version 2>/dev/null || echo "unknown"',
+        {
+          timeout: 5000,
+        }
+      );
+
       if (currentVersion.includes(targetVersion)) {
         return true;
       }
-      
+
       // Fallback: check if the package was updated in npm
-      const { stdout: packageInfo } = await execAsync('npm list -g tcma-cli-tools --depth=0 2>/dev/null || echo "not found"', {
-        timeout: 5000
-      });
-      
+      const { stdout: packageInfo } = await execAsync(
+        'npm list -g tcma-cli-tools --depth=0 2>/dev/null || echo "not found"',
+        {
+          timeout: 5000,
+        }
+      );
+
       return packageInfo.includes(targetVersion);
-      
     } catch (error) {
       this.log(`Update verification failed: ${error}`, 'warning');
       return false;
@@ -507,16 +526,22 @@ export class UpdatePlugin extends BasePlugin {
   /**
    * Categorize and analyze update errors
    */
-  private categorizeError(error: any): { message: string; canRetry: boolean; suggestRollback: boolean } {
+  private categorizeError(error: any): {
+    message: string;
+    canRetry: boolean;
+    suggestRollback: boolean;
+  } {
     let message = 'Unknown error occurred';
     let canRetry = false;
     let suggestRollback = false;
 
     if (error.code === 'ETIMEDOUT') {
-      message = 'Installation timed out (2 minutes). This could be due to slow network or large package size.';
+      message =
+        'Installation timed out (2 minutes). This could be due to slow network or large package size.';
       canRetry = true;
     } else if (error.code === 'EACCES') {
-      message = 'Permission denied. Your user account doesn\'t have permission to write to npm directories.';
+      message =
+        "Permission denied. Your user account doesn't have permission to write to npm directories.";
       canRetry = false;
     } else if (error.code === 'ENOENT') {
       message = 'npm command not found. Please ensure Node.js and npm are properly installed.';
@@ -525,17 +550,20 @@ export class UpdatePlugin extends BasePlugin {
       message = 'Network connection error. Please check your internet connection and try again.';
       canRetry = true;
     } else if (error.code === 'E404') {
-      message = 'Package not found. The GitHub repository might be unavailable or the URL is incorrect.';
+      message =
+        'Package not found. The GitHub repository might be unavailable or the URL is incorrect.';
       canRetry = false;
     } else if (error.stderr) {
       if (error.stderr.includes('permission')) {
-        message = 'Permission denied. You may need administrator privileges or need to configure npm permissions.';
+        message =
+          'Permission denied. You may need administrator privileges or need to configure npm permissions.';
         canRetry = false;
       } else if (error.stderr.includes('network')) {
         message = 'Network error detected. Please check your internet connection.';
         canRetry = true;
       } else if (error.stderr.includes('git')) {
-        message = 'Git-related error. The Git repository might be inaccessible or there might be authentication issues.';
+        message =
+          'Git-related error. The Git repository might be inaccessible or there might be authentication issues.';
         canRetry = true;
       } else {
         message = `Installation error: ${error.stderr.substring(0, 200)}...`;
@@ -562,21 +590,23 @@ export class UpdatePlugin extends BasePlugin {
       {
         type: 'confirm',
         name: 'rollback',
-        message: chalk.yellow('Update failed. Would you like to attempt rollback to the previous version?'),
-        default: true
-      }
+        message: chalk.yellow(
+          'Update failed. Would you like to attempt rollback to the previous version?'
+        ),
+        default: true,
+      },
     ]);
 
     if (rollback) {
       await UIUtils.showLoadingAnimation('Attempting to rollback to previous version...', 800);
-      
+
       try {
         // Install the current version (stored in CLI_CONFIG)
         const rollbackCommand = `npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git#${CLI_CONFIG.VERSION}`;
-        
+
         await execAsync(rollbackCommand, {
           timeout: 120000,
-          maxBuffer: 1024 * 1024 * 10
+          maxBuffer: 1024 * 1024 * 10,
         });
 
         UIUtils.showSuccess('[+] Rollback completed successfully!');
@@ -584,17 +614,16 @@ export class UpdatePlugin extends BasePlugin {
           `Rolled back to version: ${CLI_CONFIG.VERSION}`,
           'The previous version has been restored.',
           '',
-          '[*] Please restart the CLI to use the restored version.'
+          '[*] Please restart the CLI to use the restored version.',
         ]);
-        
       } catch (rollbackError) {
         UIUtils.showError('[X] Rollback failed!');
         this.log(`Rollback failed: ${rollbackError}`, 'error');
-        
+
         UIUtils.showCommandSection('Manual Rollback Required', [
           'Please run manually to restore the previous version:',
           '',
-          `npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git#${CLI_CONFIG.VERSION}`
+          `npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git#${CLI_CONFIG.VERSION}`,
         ]);
       }
     }
@@ -606,7 +635,7 @@ export class UpdatePlugin extends BasePlugin {
   private async performUpdate(targetVersion: string): Promise<void> {
     // Check permissions first
     const permissionCheck = await this.checkNpmPermissions();
-    
+
     if (!permissionCheck.hasPermission) {
       await this.handlePermissionDenied(targetVersion, permissionCheck);
       return;
@@ -617,7 +646,7 @@ export class UpdatePlugin extends BasePlugin {
         `Updating to version ${targetVersion}...`,
         'This may take a few moments.',
         '',
-        '[!] Please do not interrupt this process.'
+        '[!] Please do not interrupt this process.',
       ]);
 
       // Show loading spinner
@@ -625,17 +654,20 @@ export class UpdatePlugin extends BasePlugin {
 
       try {
         // Execute the npm install command
-        const { stdout, stderr } = await execAsync('npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git', {
-          timeout: 120000, // 2 minute timeout
-          maxBuffer: 1024 * 1024 * 10 // 10MB buffer
-        });
+        const { stdout } = await execAsync(
+          'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
+          {
+            timeout: 120000, // 2 minute timeout
+            maxBuffer: 1024 * 1024 * 10, // 10MB buffer
+          }
+        );
 
         // Clear loading spinner
         console.log();
 
         // Verify the update
         const updateSuccess = await this.verifyUpdate(targetVersion);
-        
+
         if (updateSuccess) {
           UIUtils.showSuccess('[+] Update completed successfully!');
 
@@ -647,7 +679,7 @@ export class UpdatePlugin extends BasePlugin {
             '',
             'You can restart by:',
             '1. Closing this process (Ctrl+C or ESC)',
-            '2. Running: tcmatools'
+            '2. Running: tcmatools',
           ]);
 
           // Show any npm output if relevant
@@ -658,7 +690,6 @@ export class UpdatePlugin extends BasePlugin {
           UIUtils.showError('[X] Update verification failed!');
           await this.rollbackUpdate();
         }
-
       } catch (installError: any) {
         // Clear loading spinner
         console.log();
@@ -667,7 +698,7 @@ export class UpdatePlugin extends BasePlugin {
 
         // Enhanced error handling
         const errorInfo = this.categorizeError(installError);
-        
+
         UIUtils.showInfoSection('Error Details', [errorInfo.message]);
 
         if (errorInfo.canRetry) {
@@ -676,8 +707,8 @@ export class UpdatePlugin extends BasePlugin {
               type: 'confirm',
               name: 'retry',
               message: chalk.yellow('Would you like to try again?'),
-              default: false
-            }
+              default: false,
+            },
           ]);
 
           if (retry) {
@@ -699,7 +730,6 @@ export class UpdatePlugin extends BasePlugin {
 
         this.log(`Installation failed: ${errorInfo.message}`, 'error');
       }
-
     } catch (error) {
       console.log();
       UIUtils.showError('Unexpected error during update process');

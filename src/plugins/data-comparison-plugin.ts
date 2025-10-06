@@ -31,16 +31,17 @@ interface ComparisonResult {
 
 export class DataComparisonPlugin extends BasePlugin {
   name = 'Data Comparison & Mapping Tool';
-  description = 'Compare and map data between CSV/Excel files, find matching records and export results';
+  description =
+    'Compare and map data between CSV/Excel files, find matching records and export results';
   commands = ['compare', 'data-compare'];
 
-  async execute(command: string, args?: string[]): Promise<void> {
+  async execute(_command: string, _args?: string[]): Promise<void> {
     await this.showMainMenu();
   }
 
   private async showMainMenu(): Promise<void> {
     this.showPluginHeader('Data Comparison & Mapping Tool');
-    
+
     // Show retro welcome message
     console.log(chalk.cyan.bold('┌─ WELCOME ─┐'));
     console.log(chalk.cyan.bold('│ Welcome to Data Comparison & Mapping Tool    │'));
@@ -55,9 +56,9 @@ export class DataComparisonPlugin extends BasePlugin {
         message: chalk.cyan.bold('[*] What would you like to do?'),
         choices: [
           { name: '1. Start Data Comparison Wizard', value: 'start' },
-          { name: '2. Exit to Main Menu', value: 'exit' }
-        ]
-      }
+          { name: '2. Exit to Main Menu', value: 'exit' },
+        ],
+      },
     ]);
 
     if (action === 'exit') {
@@ -71,38 +72,40 @@ export class DataComparisonPlugin extends BasePlugin {
     try {
       // Clear console to remove previous session messages
       console.clear();
-      
+
       // Step 1: Select reference file (File A)
       const fileA = await this.selectFile('reference', 'Select reference file (File A)');
       const dataA = await this.readFile(fileA);
-      
+
       // Step 2: Select extraction file (File B)
       const fileB = await this.selectFile('extraction', 'Select extraction file (File B)', fileA);
       const dataB = await this.readFile(fileB);
-      
+
       // Check for existing config
       const existingConfig = await this.checkForExistingConfig();
       let config: ComparisonConfig | null = null;
-      
+
       if (existingConfig) {
         const { useConfig } = await inquirer.prompt([
           {
             type: 'confirm',
             name: 'useConfig',
-            message: chalk.yellow(`Found existing config file. Do you want to use it for matching and mapping?`),
-            default: true
-          }
+            message: chalk.yellow(
+              `Found existing config file. Do you want to use it for matching and mapping?`
+            ),
+            default: true,
+          },
         ]);
-        
+
         if (useConfig) {
           config = existingConfig;
           this.log('Using existing configuration', 'success');
         }
       }
-      
+
       let comparisonResult: ComparisonResult;
       let fieldMapping: { [key: string]: string };
-      
+
       if (config) {
         // Use existing config
         comparisonResult = await this.performDataComparisonWithConfig(dataA, dataB, config);
@@ -111,29 +114,36 @@ export class DataComparisonPlugin extends BasePlugin {
         // Manual configuration
         // Step 3: Data comparison
         comparisonResult = await this.performDataComparison(dataA, dataB);
-        
+
         // Step 4: Field mapping
         fieldMapping = await this.performFieldMapping(dataA.headers, dataB.headers);
-        
+
         // Ask to save config
-        await this.saveConfigPrompt(comparisonResult.fileAFields || [], comparisonResult.fileBFields || [], fieldMapping);
+        await this.saveConfigPrompt(
+          comparisonResult.fileAFields || [],
+          comparisonResult.fileBFields || [],
+          fieldMapping
+        );
       }
-      
+
       // Step 5: Export Choice Logic
       await this.handleExportChoice(comparisonResult, fieldMapping, dataA, dataB);
-      
+
       // Step 6: Completion and return menu
       await this.showCompletionMenu();
-      
     } catch (error) {
       this.log(`Error in wizard: ${error}`, 'error');
       await this.showPluginFooter();
     }
   }
 
-  private async selectFile(type: 'reference' | 'extraction', message: string, excludeFile?: string): Promise<string> {
+  private async selectFile(
+    type: 'reference' | 'extraction',
+    message: string,
+    excludeFile?: string
+  ): Promise<string> {
     const files = this.getAvailableFiles(excludeFile);
-    
+
     if (files.length === 0) {
       throw new Error(`No ${type} files found in current directory`);
     }
@@ -141,7 +151,7 @@ export class DataComparisonPlugin extends BasePlugin {
     const choices = files.slice(0, 10).map((file, index) => ({
       name: `${index + 1}. ${file}`,
       value: file,
-      short: file
+      short: file,
     }));
 
     const { selectedFile } = await inquirer.prompt([
@@ -150,8 +160,8 @@ export class DataComparisonPlugin extends BasePlugin {
         name: 'selectedFile',
         message: chalk.blue(message),
         choices: choices,
-        pageSize: 10
-      }
+        pageSize: 10,
+      },
     ]);
 
     return selectedFile;
@@ -159,12 +169,15 @@ export class DataComparisonPlugin extends BasePlugin {
 
   private getAvailableFiles(excludeFile?: string): string[] {
     const currentDir = process.cwd();
-    const files = fs.readdirSync(currentDir)
+    const files = fs
+      .readdirSync(currentDir)
       .filter(file => {
         const ext = path.extname(file).toLowerCase();
-        return (ext === '.csv' || ext === '.xlsx' || ext === '.xls') && 
-               file !== excludeFile &&
-               fs.statSync(path.join(currentDir, file)).isFile();
+        return (
+          (ext === '.csv' || ext === '.xlsx' || ext === '.xls') &&
+          file !== excludeFile &&
+          fs.statSync(path.join(currentDir, file)).isFile()
+        );
       })
       .sort();
 
@@ -212,9 +225,9 @@ export class DataComparisonPlugin extends BasePlugin {
     const workbook = XLSX.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    
+
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-    
+
     if (jsonData.length === 0) {
       throw new Error('Excel file is empty');
     }
@@ -233,12 +246,12 @@ export class DataComparisonPlugin extends BasePlugin {
 
   private async checkForExistingConfig(): Promise<ComparisonConfig | null> {
     const configPath = path.resolve('data-comparison-config.json');
-    
+
     if (fs.existsSync(configPath)) {
       try {
         const configData = fs.readFileSync(configPath, 'utf8');
         const config = JSON.parse(configData) as ComparisonConfig;
-        
+
         // Display config info with retro styling
         console.log();
         UIUtils.showSectionHeader('FOUND EXISTING CONFIG');
@@ -248,29 +261,37 @@ export class DataComparisonPlugin extends BasePlugin {
         if (config.description) {
           console.log(chalk.cyan.bold(`│ [*] Description: ${config.description.padEnd(58)} │`));
         }
-        console.log(chalk.cyan.bold(`│ [*] File A fields: ${config.fileAFields.join(', ').padEnd(55)} │`));
-        console.log(chalk.cyan.bold(`│ [*] File B fields: ${config.fileBFields.join(', ').padEnd(55)} │`));
+        console.log(
+          chalk.cyan.bold(`│ [*] File A fields: ${config.fileAFields.join(', ').padEnd(55)} │`)
+        );
+        console.log(
+          chalk.cyan.bold(`│ [*] File B fields: ${config.fileBFields.join(', ').padEnd(55)} │`)
+        );
         console.log(chalk.cyan.bold('└' + '─'.repeat(64) + '┘'));
         console.log();
-        
+
         return config;
       } catch (error) {
         this.log(`Error reading config file: ${error}`, 'warning');
         return null;
       }
     }
-    
+
     return null;
   }
 
-  private async saveConfigPrompt(fileAFields: number[], fileBFields: number[], fieldMapping: { [key: string]: string }): Promise<void> {
+  private async saveConfigPrompt(
+    fileAFields: number[],
+    fileBFields: number[],
+    fieldMapping: { [key: string]: string }
+  ): Promise<void> {
     const { saveConfig } = await inquirer.prompt([
       {
         type: 'confirm',
         name: 'saveConfig',
         message: chalk.yellow('Do you want to save this mapping configuration for future use?'),
-        default: true
-      }
+        default: true,
+      },
     ]);
 
     if (saveConfig) {
@@ -279,25 +300,30 @@ export class DataComparisonPlugin extends BasePlugin {
           type: 'input',
           name: 'description',
           message: chalk.blue('Enter a description for this configuration (optional):'),
-          default: ''
-        }
+          default: '',
+        },
       ]);
 
       await this.saveConfig(fileAFields, fileBFields, fieldMapping, description);
     }
   }
 
-  private async saveConfig(fileAFields: number[], fileBFields: number[], fieldMapping: { [key: string]: string }, description: string): Promise<void> {
+  private async saveConfig(
+    fileAFields: number[],
+    fileBFields: number[],
+    fieldMapping: { [key: string]: string },
+    description: string
+  ): Promise<void> {
     const config: ComparisonConfig = {
       fileAFields,
       fileBFields,
       fieldMapping,
       createdAt: new Date().toISOString(),
-      description: description || undefined
+      description: description || undefined,
     };
 
     const configPath = path.resolve('data-comparison-config.json');
-    
+
     try {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
       this.log(`Configuration saved to ${configPath}`, 'success');
@@ -306,9 +332,13 @@ export class DataComparisonPlugin extends BasePlugin {
     }
   }
 
-  private async performDataComparisonWithConfig(dataA: FileData, dataB: FileData, config: ComparisonConfig): Promise<ComparisonResult> {
+  private async performDataComparisonWithConfig(
+    dataA: FileData,
+    dataB: FileData,
+    config: ComparisonConfig
+  ): Promise<ComparisonResult> {
     this.showPluginHeader('Data Comparison (Using Config)');
-    
+
     console.log(chalk.green('Using saved configuration:'));
     console.log(chalk.white(`File A fields: ${config.fileAFields.join(', ')}`));
     console.log(chalk.white(`File B fields: ${config.fileBFields.join(', ')}`));
@@ -320,16 +350,20 @@ export class DataComparisonPlugin extends BasePlugin {
     // Create comparison sets
     const fileASet = new Set<string>();
     dataA.rows.forEach(row => {
-      const key = fileAFieldIndices.map((index: number) => String(row[dataA.headers[index]] || '')).join('|');
+      const key = fileAFieldIndices
+        .map((index: number) => String(row[dataA.headers[index]] || ''))
+        .join('|');
       fileASet.add(key);
     });
 
     // Find matching and unmatched rows in file B
     const matchedRows: any[] = [];
     const unmatchedRows: any[] = [];
-    
+
     dataB.rows.forEach(row => {
-      const key = fileBFieldIndices.map((index: number) => String(row[dataB.headers[index]] || '')).join('|');
+      const key = fileBFieldIndices
+        .map((index: number) => String(row[dataB.headers[index]] || ''))
+        .join('|');
       if (fileASet.has(key)) {
         matchedRows.push(row);
       } else {
@@ -339,9 +373,13 @@ export class DataComparisonPlugin extends BasePlugin {
 
     // Display comparison statistics
     console.log();
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(
+      chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    );
     console.log(chalk.green('                    COMPARISON RESULTS'));
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(
+      chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    );
     console.log();
     console.log(chalk.white(`[*] File A (Reference): ${dataA.rows.length} rows`));
     console.log(chalk.white(`[*] File B (Extraction): ${dataB.rows.length} rows`));
@@ -355,9 +393,11 @@ export class DataComparisonPlugin extends BasePlugin {
         {
           type: 'confirm',
           name: 'exportUnmatched',
-          message: chalk.yellow(`Do you want to export the ${unmatchedRows.length} unmatched rows from File B?`),
-          default: false
-        }
+          message: chalk.yellow(
+            `Do you want to export the ${unmatchedRows.length} unmatched rows from File B?`
+          ),
+          default: false,
+        },
       ]);
 
       if (exportUnmatched) {
@@ -368,13 +408,13 @@ export class DataComparisonPlugin extends BasePlugin {
     return {
       matchedRows,
       unmatchedRows,
-      fieldMapping: config.fieldMapping
+      fieldMapping: config.fieldMapping,
     };
   }
 
   private async performDataComparison(dataA: FileData, dataB: FileData): Promise<ComparisonResult> {
     this.showPluginHeader('Data Comparison');
-    
+
     // Display file A columns
     console.log(chalk.green('File A (Reference) columns:'));
     dataA.headers.forEach((header, index) => {
@@ -397,9 +437,11 @@ export class DataComparisonPlugin extends BasePlugin {
         message: chalk.blue('Enter File A field numbers to compare (comma-separated, e.g., 1,2):'),
         validate: (input: string) => {
           const fields = input.split(',').map((f: string) => parseInt(f.trim()));
-          return fields.every((f: number) => f >= 1 && f <= dataA.headers.length) ? true : 'Invalid field numbers';
-        }
-      }
+          return fields.every((f: number) => f >= 1 && f <= dataA.headers.length)
+            ? true
+            : 'Invalid field numbers';
+        },
+      },
     ]);
 
     const { fileBFields } = await inquirer.prompt([
@@ -409,9 +451,11 @@ export class DataComparisonPlugin extends BasePlugin {
         message: chalk.blue('Enter File B field numbers to compare (comma-separated, e.g., 5,1):'),
         validate: (input: string) => {
           const fields = input.split(',').map((f: string) => parseInt(f.trim()));
-          return fields.every((f: number) => f >= 1 && f <= dataB.headers.length) ? true : 'Invalid field numbers';
-        }
-      }
+          return fields.every((f: number) => f >= 1 && f <= dataB.headers.length)
+            ? true
+            : 'Invalid field numbers';
+        },
+      },
     ]);
 
     const fileAFieldIndices = fileAFields.split(',').map((f: string) => parseInt(f.trim()) - 1);
@@ -420,16 +464,20 @@ export class DataComparisonPlugin extends BasePlugin {
     // Create comparison sets
     const fileASet = new Set<string>();
     dataA.rows.forEach(row => {
-      const key = fileAFieldIndices.map((index: number) => String(row[dataA.headers[index]] || '')).join('|');
+      const key = fileAFieldIndices
+        .map((index: number) => String(row[dataA.headers[index]] || ''))
+        .join('|');
       fileASet.add(key);
     });
 
     // Find matching and unmatched rows in file B
     const matchedRows: any[] = [];
     const unmatchedRows: any[] = [];
-    
+
     dataB.rows.forEach(row => {
-      const key = fileBFieldIndices.map((index: number) => String(row[dataB.headers[index]] || '')).join('|');
+      const key = fileBFieldIndices
+        .map((index: number) => String(row[dataB.headers[index]] || ''))
+        .join('|');
       if (fileASet.has(key)) {
         matchedRows.push(row);
       } else {
@@ -439,9 +487,13 @@ export class DataComparisonPlugin extends BasePlugin {
 
     // Display comparison statistics
     console.log();
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(
+      chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    );
     console.log(chalk.green('                    COMPARISON RESULTS'));
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(
+      chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    );
     console.log();
     console.log(chalk.white(`[*] File A (Reference): ${dataA.rows.length} rows`));
     console.log(chalk.white(`[*] File B (Extraction): ${dataB.rows.length} rows`));
@@ -455,9 +507,11 @@ export class DataComparisonPlugin extends BasePlugin {
         {
           type: 'confirm',
           name: 'exportUnmatched',
-          message: chalk.yellow(`Do you want to export the ${unmatchedRows.length} unmatched rows from File B?`),
-          default: false
-        }
+          message: chalk.yellow(
+            `Do you want to export the ${unmatchedRows.length} unmatched rows from File B?`
+          ),
+          default: false,
+        },
       ]);
 
       if (exportUnmatched) {
@@ -470,13 +524,16 @@ export class DataComparisonPlugin extends BasePlugin {
       unmatchedRows,
       fieldMapping: {},
       fileAFields: fileAFields.split(',').map((f: string) => parseInt(f.trim())),
-      fileBFields: fileBFields.split(',').map((f: string) => parseInt(f.trim()))
+      fileBFields: fileBFields.split(',').map((f: string) => parseInt(f.trim())),
     };
   }
 
-  private async performFieldMapping(fileAHeaders: string[], fileBHeaders: string[]): Promise<{ [key: string]: string }> {
+  private async performFieldMapping(
+    fileAHeaders: string[],
+    fileBHeaders: string[]
+  ): Promise<{ [key: string]: string }> {
     this.showPluginHeader('Field Mapping');
-    
+
     console.log(chalk.green('Map File B fields to File A fields:'));
     console.log();
 
@@ -486,7 +543,7 @@ export class DataComparisonPlugin extends BasePlugin {
       const choices = fileBHeaders.map((header, index) => ({
         name: `${index + 1}. ${header}`,
         value: header,
-        short: header
+        short: header,
       }));
 
       const { selectedField } = await inquirer.prompt([
@@ -494,8 +551,8 @@ export class DataComparisonPlugin extends BasePlugin {
           type: 'list',
           name: 'selectedField',
           message: chalk.blue(`Map File A field "${fileAHeader}" to File B field:`),
-          choices: choices
-        }
+          choices: choices,
+        },
       ]);
 
       fieldMapping[fileAHeader] = selectedField;
@@ -504,13 +561,22 @@ export class DataComparisonPlugin extends BasePlugin {
     return fieldMapping;
   }
 
-  private async handleExportChoice(comparisonResult: ComparisonResult, fieldMapping: { [key: string]: string }, dataA: FileData, dataB: FileData): Promise<void> {
+  private async handleExportChoice(
+    comparisonResult: ComparisonResult,
+    fieldMapping: { [key: string]: string },
+    dataA: FileData,
+    dataB: FileData
+  ): Promise<void> {
     this.showPluginHeader('Export Options');
-    
+
     console.log();
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(
+      chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    );
     console.log(chalk.green('                    EXPORT OPTIONS'));
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(
+      chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    );
     console.log();
     console.log(chalk.white(`[*] Total rows in File B: ${dataB.rows.length}`));
     console.log(chalk.green(`[+] Matched rows: ${comparisonResult.matchedRows.length}`));
@@ -523,16 +589,16 @@ export class DataComparisonPlugin extends BasePlugin {
         name: 'exportChoice',
         message: chalk.blue('How would you like to export the data?'),
         choices: [
-          { 
-            name: `1. Export ONLY matched rows (${comparisonResult.matchedRows.length} rows) with File A field structure`, 
-            value: 'matched-only' 
+          {
+            name: `1. Export ONLY matched rows (${comparisonResult.matchedRows.length} rows) with File A field structure`,
+            value: 'matched-only',
           },
-          { 
-            name: `2. Export ALL File B rows (${dataB.rows.length} rows) with File A field structure`, 
-            value: 'all-fileb' 
-          }
-        ]
-      }
+          {
+            name: `2. Export ALL File B rows (${dataB.rows.length} rows) with File A field structure`,
+            value: 'all-fileb',
+          },
+        ],
+      },
     ]);
 
     if (exportChoice === 'matched-only') {
@@ -542,13 +608,21 @@ export class DataComparisonPlugin extends BasePlugin {
     }
   }
 
-  private async exportMatchedRows(matchedRows: any[], fieldMapping: { [key: string]: string }, outputHeaders: string[]): Promise<void> {
+  private async exportMatchedRows(
+    matchedRows: any[],
+    fieldMapping: { [key: string]: string },
+    outputHeaders: string[]
+  ): Promise<void> {
     await this.exportToCSV(matchedRows, fieldMapping, outputHeaders);
   }
 
-  private async exportAllFileBRows(allFileBRows: any[], fieldMapping: { [key: string]: string }, outputHeaders: string[]): Promise<void> {
+  private async exportAllFileBRows(
+    allFileBRows: any[],
+    fieldMapping: { [key: string]: string },
+    outputHeaders: string[]
+  ): Promise<void> {
     this.showPluginHeader('Export All File B Rows');
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const fileName = `Export_AllFileB-${timestamp}.csv`;
     const filePath = path.resolve(fileName);
@@ -570,7 +644,7 @@ export class DataComparisonPlugin extends BasePlugin {
     // Write CSV file
     const csvWriter = createObjectCsvWriter({
       path: filePath,
-      header: outputHeaders.map(header => ({ id: header, title: header }))
+      header: outputHeaders.map(header => ({ id: header, title: header })),
     });
 
     await csvWriter.writeRecords(exportData);
@@ -578,9 +652,16 @@ export class DataComparisonPlugin extends BasePlugin {
     // Ensure UTF-8 BOM for better Unicode compatibility (e.g., Excel)
     this.ensureCsvBom(filePath);
 
-    this.log(`Successfully exported ${exportData.length} rows from File B to ${fileName}`, 'success');
+    this.log(
+      `Successfully exported ${exportData.length} rows from File B to ${fileName}`,
+      'success'
+    );
     console.log(chalk.green(`File saved at: ${filePath}`));
-    console.log(chalk.yellow(`Note: All rows exported using File A field structure with field mapping applied.`));
+    console.log(
+      chalk.yellow(
+        `Note: All rows exported using File A field structure with field mapping applied.`
+      )
+    );
   }
 
   private async exportUnmatchedRows(unmatchedRows: any[], headers: string[]): Promise<void> {
@@ -591,7 +672,7 @@ export class DataComparisonPlugin extends BasePlugin {
     // Write CSV file with original File B format
     const csvWriter = createObjectCsvWriter({
       path: filePath,
-      header: headers.map(header => ({ id: header, title: header }))
+      header: headers.map(header => ({ id: header, title: header })),
     });
 
     await csvWriter.writeRecords(unmatchedRows);
@@ -599,14 +680,21 @@ export class DataComparisonPlugin extends BasePlugin {
     // Ensure UTF-8 BOM for better Unicode compatibility (e.g., Excel)
     this.ensureCsvBom(filePath);
 
-    this.log(`Successfully exported ${unmatchedRows.length} unmatched rows to ${fileName}`, 'success');
+    this.log(
+      `Successfully exported ${unmatchedRows.length} unmatched rows to ${fileName}`,
+      'success'
+    );
     console.log(chalk.green(`File saved at: ${filePath}`));
     console.log();
   }
 
-  private async exportToCSV(matchedRows: any[], fieldMapping: { [key: string]: string }, outputHeaders: string[]): Promise<void> {
+  private async exportToCSV(
+    matchedRows: any[],
+    fieldMapping: { [key: string]: string },
+    outputHeaders: string[]
+  ): Promise<void> {
     this.showPluginHeader('Export Results');
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const fileName = `Export_result-${timestamp}.csv`;
     const filePath = path.resolve(fileName);
@@ -624,7 +712,7 @@ export class DataComparisonPlugin extends BasePlugin {
     // Write CSV file
     const csvWriter = createObjectCsvWriter({
       path: filePath,
-      header: outputHeaders.map(header => ({ id: header, title: header }))
+      header: outputHeaders.map(header => ({ id: header, title: header })),
     });
 
     await csvWriter.writeRecords(exportData);
@@ -645,9 +733,9 @@ export class DataComparisonPlugin extends BasePlugin {
         message: chalk.blue('What would you like to do next?'),
         choices: [
           { name: '1. Start New Comparison', value: 'new' },
-          { name: '2. Return to Main Menu', value: 'main' }
-        ]
-      }
+          { name: '2. Return to Main Menu', value: 'main' },
+        ],
+      },
     ]);
 
     if (action === 'new') {
@@ -660,9 +748,10 @@ export class DataComparisonPlugin extends BasePlugin {
   private ensureCsvBom(filePath: string): void {
     try {
       const content = fs.readFileSync(filePath);
-      const hasBom = content.length >= 3 && content[0] === 0xEF && content[1] === 0xBB && content[2] === 0xBF;
+      const hasBom =
+        content.length >= 3 && content[0] === 0xef && content[1] === 0xbb && content[2] === 0xbf;
       if (!hasBom) {
-        const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
+        const bom = Buffer.from([0xef, 0xbb, 0xbf]);
         const withBom = Buffer.concat([bom, content]);
         fs.writeFileSync(filePath, withBom);
       }

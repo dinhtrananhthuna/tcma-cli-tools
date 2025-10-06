@@ -37,7 +37,7 @@ export abstract class BasePlugin implements Plugin {
    */
   protected log(message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info'): void {
     const timestamp = new Date().toLocaleTimeString();
-    
+
     switch (type) {
       case 'info':
         console.log(chalk.blue(`[${timestamp}]`), chalk.white(message));
@@ -68,7 +68,7 @@ export abstract class BasePlugin implements Plugin {
     UIUtils.showInfoSection('Version Information', [
       `Current: ${CLI_CONFIG.VERSION}`,
       `Repository: ${CLI_CONFIG.REPOSITORY}`,
-      `NPM: ${CLI_CONFIG.NPM_URL}`
+      `NPM: ${CLI_CONFIG.NPM_URL}`,
     ]);
   }
 
@@ -78,7 +78,7 @@ export abstract class BasePlugin implements Plugin {
   protected showUpdateCommands(): void {
     UIUtils.showCommandSection('Update Commands', [
       'npm install -g git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
-      'npm update -g tcma-cli-tools'
+      'npm update -g tcma-cli-tools',
     ]);
   }
 }

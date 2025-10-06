@@ -1,4 +1,4 @@
-import { Plugin, BasePlugin } from './base-plugin';
+import { Plugin } from './base-plugin';
 import chalk from 'chalk';
 
 export class PluginManager {
@@ -18,7 +18,7 @@ export class PluginManager {
 
   async executeCommand(command: string): Promise<void> {
     const commandName = command.toLowerCase().substring(1); // Remove leading '/'
-    
+
     // Find plugin that handles this command
     for (const plugin of this.plugins.values()) {
       if (plugin.commands.includes(commandName)) {
@@ -50,9 +50,13 @@ export class PluginManager {
   }
 
   showPluginInfo(): void {
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(
+      chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    );
     console.log(chalk.cyan('                              PLUGIN INFORMATION'));
-    console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(
+      chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    );
     console.log();
 
     for (const plugin of this.plugins.values()) {

@@ -6,12 +6,12 @@ export class UIUtils {
    * Show retro ASCII art title with enhanced styling
    */
   static showTitle(text: string, font: string = 'ANSI Shadow'): void {
-    const asciiArt = figlet.textSync(text, { 
+    const asciiArt = figlet.textSync(text, {
       font: font,
       horizontalLayout: 'default',
-      verticalLayout: 'default'
+      verticalLayout: 'default',
     });
-    
+
     // Apply retro gradient effect
     const lines = asciiArt.split('\n');
     const coloredLines = lines.map((line, index) => {
@@ -19,7 +19,7 @@ export class UIUtils {
       const colorIndex = index % colors.length;
       return colors[colorIndex](line);
     });
-    
+
     console.log(coloredLines.join('\n'));
   }
 
@@ -30,8 +30,9 @@ export class UIUtils {
     const border = '═'.repeat(80);
     const topBorder = chalk.magenta('╔' + border + '╗');
     const bottomBorder = chalk.magenta('╚' + border + '╝');
-    const titleLine = chalk.magenta('║') + ' '.repeat(25) + chalk.cyan.bold(` ${title.toUpperCase()} `);
-    
+    const titleLine =
+      chalk.magenta('║') + ' '.repeat(25) + chalk.cyan.bold(` ${title.toUpperCase()} `);
+
     console.log(topBorder);
     console.log(titleLine);
     console.log(bottomBorder);
@@ -95,11 +96,11 @@ export class UIUtils {
    * Wait for user input with Escape key support
    */
   static async waitForEscape(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(true);
         process.stdin.resume();
-        
+
         const handleKeyPress = (key: Buffer) => {
           // Check for Escape key (ASCII 27)
           if (key[0] === 27) {
@@ -109,7 +110,7 @@ export class UIUtils {
             resolve();
           }
         };
-        
+
         process.stdin.on('data', handleKeyPress);
       } else {
         // If not TTY, resolve immediately
@@ -153,7 +154,7 @@ export class UIUtils {
     const percentage = Math.round((current / total) * 100);
     const filled = Math.round((current / total) * 20);
     const empty = 20 - filled;
-    
+
     const bar = '█'.repeat(filled) + '░'.repeat(empty);
     console.log(chalk.cyan.bold(`┌─ ${label} ─┐`));
     console.log(chalk.cyan.bold(`│ [${bar}] ${percentage}% (${current}/${total}) │`));
@@ -178,7 +179,7 @@ export class UIUtils {
     ║                                                                              ║
     ╚══════════════════════════════════════════════════════════════════════════════╝
     `;
-    
+
     console.log(chalk.cyan(logo));
   }
 
@@ -207,33 +208,33 @@ export class UIUtils {
   static async showLoadingAnimation(message: string, duration: number = 3000): Promise<void> {
     const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
     const colors = [chalk.cyan, chalk.magenta, chalk.yellow, chalk.green, chalk.blue];
-    
+
     let frameIndex = 0;
     let colorIndex = 0;
-    
+
     const startTime = Date.now();
-    
+
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
+
       const frame = frames[frameIndex];
       const color = colors[colorIndex];
-      
+
       process.stdout.write(`\r${color(`${frame} ${message}...`)} ${Math.round(progress * 100)}%`);
-      
+
       frameIndex = (frameIndex + 1) % frames.length;
       if (frameIndex === 0) {
         colorIndex = (colorIndex + 1) % colors.length;
       }
-      
+
       if (progress >= 1) {
         clearInterval(interval);
         process.stdout.write('\r' + ' '.repeat(80) + '\r');
         console.log(chalk.green.bold(`[+] ${message} completed!`));
       }
     }, 100);
-    
+
     return new Promise(resolve => {
       setTimeout(() => {
         clearInterval(interval);
@@ -263,13 +264,13 @@ export class UIUtils {
       chalk.white,
       chalk.white.bold,
       chalk.cyan,
-      chalk.cyan.bold
+      chalk.cyan.bold,
     ];
-    
+
     for (let i = 0; i < steps; i++) {
       const colorIndex = Math.floor((i / steps) * colors.length);
       const color = colors[colorIndex];
-      
+
       process.stdout.write(`\r${color(text)}`);
       await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -283,12 +284,12 @@ export class UIUtils {
     const chars = '01';
     const columns = process.stdout.columns || 80;
     const rows = 20;
-    
+
     const startTime = Date.now();
-    
+
     const interval = setInterval(() => {
       console.clear();
-      
+
       for (let row = 0; row < rows; row++) {
         let line = '';
         for (let col = 0; col < columns; col++) {
@@ -298,14 +299,14 @@ export class UIUtils {
         }
         console.log(line);
       }
-      
+
       const elapsed = Date.now() - startTime;
       if (elapsed >= duration) {
         clearInterval(interval);
         console.clear();
       }
     }, 100);
-    
+
     return new Promise(resolve => {
       setTimeout(() => {
         clearInterval(interval);
@@ -319,7 +320,7 @@ export class UIUtils {
    */
   static async glitchEffect(text: string, iterations: number = 5): Promise<void> {
     const glitchChars = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-    
+
     for (let i = 0; i < iterations; i++) {
       // Show glitched version
       let glitched = '';
@@ -330,10 +331,10 @@ export class UIUtils {
           glitched += text[j];
         }
       }
-      
+
       process.stdout.write(`\r${chalk.red(glitched)}`);
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Show original
       process.stdout.write(`\r${chalk.cyan(text)}`);
       await new Promise(resolve => setTimeout(resolve, 100));
