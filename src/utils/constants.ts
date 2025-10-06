@@ -1,5 +1,5 @@
 export const CLI_CONFIG = {
-  VERSION: '1.3.3',
+  VERSION: '1.3.4',
   NAME: 'TCMA CLI Tools',
   DESCRIPTION: 'Development utilities for TCMA team - Code by Vu Dinh',
   REPOSITORY: 'https://github.com/dinhtrananhthuna/tcma-cli-tools.git',
