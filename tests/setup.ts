@@ -10,9 +10,6 @@ global.console = {
   error: jest.fn(),
 };
 
-// Set up test environment
-process.cwd = () => path.resolve(__dirname, '..');
-
 // Clean up test files after each test
 afterEach(() => {
   // Clean up any generated files during tests

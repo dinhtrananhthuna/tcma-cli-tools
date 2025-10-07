@@ -96,6 +96,19 @@ describe('UpdatePlugin - Unit Tests', () => {
     expect(res.latestVersion).toBe('9.9.9');
   });
 
+  test('checkForUpdates falls back when GitHub API returns non-success status', async () => {
+    jest.spyOn(plugin as any, 'fetchFromGitHub').mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+      text: async () => 'error',
+    } as any);
+
+    const res = await (plugin as any).checkForUpdates();
+    expect(res.hasUpdate).toBe(false);
+    expect(res.latestVersion).toBe(CLI_CONFIG.VERSION);
+  });
+
   test('checkForUpdates falls back when GitHub API fails', async () => {
     jest.spyOn(plugin as any, 'fetchFromGitHub').mockRejectedValue(new Error('network'));
     const res = await (plugin as any).checkForUpdates();
@@ -134,6 +147,18 @@ describe('UpdatePlugin - Unit Tests', () => {
     expect(ui.UIUtils.showSuccess).toHaveBeenCalled();
   });
 
+  test('performUpdate delegates to handlePermissionDenied when permissions missing', async () => {
+    const permissionInfo = { hasPermission: false, needsSudo: true, npmPrefix: '/usr/local' };
+    jest.spyOn(plugin as any, 'checkNpmPermissions').mockResolvedValue(permissionInfo);
+    const handleSpy = jest
+      .spyOn(plugin as any, 'handlePermissionDenied')
+      .mockResolvedValue(undefined);
+
+    await (plugin as any).performUpdate('9.9.9');
+
+    expect(handleSpy).toHaveBeenCalledWith('9.9.9', permissionInfo);
+  });
+
   test('performUpdate triggers rollback when verification fails', async () => {
     jest
       .spyOn(plugin as any, 'checkNpmPermissions')
@@ -144,6 +169,22 @@ describe('UpdatePlugin - Unit Tests', () => {
 
     await (plugin as any).performUpdate('9.9.9');
     expect(rollbackSpy).toHaveBeenCalled();
+  });
+
+  test('handlePermissionDenied uses sudo path when user agrees', async () => {
+    const inquirer = require('inquirer');
+    (inquirer.default.prompt as jest.Mock).mockResolvedValue({ useSudo: true });
+    const performSudoUpdateSpy = jest
+      .spyOn(plugin as any, 'performSudoUpdate')
+      .mockResolvedValue(undefined);
+
+    await (plugin as any).handlePermissionDenied('9.9.9', {
+      hasPermission: false,
+      needsSudo: true,
+      npmPrefix: '/usr/local',
+    });
+
+    expect(performSudoUpdateSpy).toHaveBeenCalledWith('9.9.9');
   });
 
   test('handlePermissionDenied shows solutions when user does not choose sudo', async () => {
@@ -161,6 +202,22 @@ describe('UpdatePlugin - Unit Tests', () => {
 
     expect(solutionsSpy).toHaveBeenCalled();
   });
-});
 
+  test('performSudoUpdate runs sudo install and verifies success', async () => {
+    const spawnModule = require('child_process');
+    const spawnMock = spawnModule.spawn as jest.Mock;
+    const ui = require('../src/utils/ui-utils');
+
+    jest.spyOn(plugin as any, 'verifyUpdate').mockResolvedValue(true);
+
+    await (plugin as any).performSudoUpdate('9.9.9');
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      'sudo',
+      ['npm', 'install', '-g', 'git+https://github.com/dinhtrananhthuna/tcma-cli-tools.git'],
+      { stdio: 'inherit' }
+    );
+    expect(ui.UIUtils.showSuccess).toHaveBeenCalledWith('[+] Update completed successfully with sudo!');
+  });
+});
 
