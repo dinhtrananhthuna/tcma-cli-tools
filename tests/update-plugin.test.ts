@@ -219,5 +219,46 @@ describe('UpdatePlugin - Unit Tests', () => {
     );
     expect(ui.UIUtils.showSuccess).toHaveBeenCalledWith('[+] Update completed successfully with sudo!');
   });
-});
 
+  test('verifyUpdate returns true when CLI version matches target', async () => {
+    jest.spyOn(plugin as any, 'tryGetCliVersion').mockResolvedValue('9.9.9');
+    const runCommandSpy = jest.spyOn(plugin as any, 'runCommand');
+
+    const result = await (plugin as any).verifyUpdate('9.9.9');
+
+    expect(result).toBe(true);
+    expect(runCommandSpy).not.toHaveBeenCalled();
+  });
+
+  test('verifyUpdate checks npm list when CLI version unavailable', async () => {
+    jest.spyOn(plugin as any, 'tryGetCliVersion').mockResolvedValue(null);
+    jest.spyOn(plugin as any, 'runCommand').mockResolvedValue({
+      stdout: JSON.stringify({
+        dependencies: {
+          'tcma-cli-tools': {
+            version: '9.9.9',
+          },
+        },
+      }),
+      stderr: '',
+      exitCode: 0,
+    });
+
+    const result = await (plugin as any).verifyUpdate('9.9.9');
+
+    expect(result).toBe(true);
+  });
+
+  test('verifyUpdate returns false when npm list output lacks version', async () => {
+    jest.spyOn(plugin as any, 'tryGetCliVersion').mockResolvedValue(null);
+    jest.spyOn(plugin as any, 'runCommand').mockResolvedValue({
+      stdout: JSON.stringify({ dependencies: {} }),
+      stderr: '',
+      exitCode: 1,
+    });
+
+    const result = await (plugin as any).verifyUpdate('9.9.9');
+
+    expect(result).toBe(false);
+  });
+});

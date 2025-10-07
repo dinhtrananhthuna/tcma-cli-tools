@@ -98,8 +98,15 @@ export class DataComparisonPlugin extends BasePlugin {
         ]);
 
         if (useConfig) {
-          config = existingConfig;
-          this.log('Using existing configuration', 'success');
+          if (existingConfig.fileAFields.length !== existingConfig.fileBFields.length) {
+            this.log(
+              'Saved configuration is invalid because field counts differ. Falling back to manual setup.',
+              'warning'
+            );
+          } else {
+            config = existingConfig;
+            this.log('Using existing configuration', 'success');
+          }
         }
       }
 
@@ -236,7 +243,8 @@ export class DataComparisonPlugin extends BasePlugin {
     const rows = (jsonData.slice(1) as any[][]).map((row: any[]) => {
       const obj: any = {};
       headers.forEach((header: string, index: number) => {
-        obj[header] = row[index] || '';
+        const cellValue = row[index];
+        obj[header] = cellValue ?? '';
       });
       return obj;
     });
@@ -351,7 +359,10 @@ export class DataComparisonPlugin extends BasePlugin {
     const fileASet = new Set<string>();
     dataA.rows.forEach(row => {
       const key = fileAFieldIndices
-        .map((index: number) => String(row[dataA.headers[index]] || ''))
+        .map((index: number) => {
+          const value = row[dataA.headers[index]];
+          return String(value ?? '');
+        })
         .join('|');
       fileASet.add(key);
     });
@@ -362,7 +373,10 @@ export class DataComparisonPlugin extends BasePlugin {
 
     dataB.rows.forEach(row => {
       const key = fileBFieldIndices
-        .map((index: number) => String(row[dataB.headers[index]] || ''))
+        .map((index: number) => {
+          const value = row[dataB.headers[index]];
+          return String(value ?? '');
+        })
         .join('|');
       if (fileASet.has(key)) {
         matchedRows.push(row);
@@ -429,43 +443,80 @@ export class DataComparisonPlugin extends BasePlugin {
     });
     console.log();
 
-    // Get field selection for comparison
-    const { fileAFields } = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'fileAFields',
-        message: chalk.blue('Enter File A field numbers to compare (comma-separated, e.g., 1,2):'),
-        validate: (input: string) => {
-          const fields = input.split(',').map((f: string) => parseInt(f.trim()));
-          return fields.every((f: number) => f >= 1 && f <= dataA.headers.length)
-            ? true
-            : 'Invalid field numbers';
-        },
-      },
-    ]);
+    const parseSelection = (input: string, max: number): number[] => {
+      return input
+        .split(',')
+        .map((f: string) => parseInt(f.trim(), 10))
+        .filter((value: number) => !Number.isNaN(value) && value >= 1 && value <= max);
+    };
 
-    const { fileBFields } = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'fileBFields',
-        message: chalk.blue('Enter File B field numbers to compare (comma-separated, e.g., 5,1):'),
-        validate: (input: string) => {
-          const fields = input.split(',').map((f: string) => parseInt(f.trim()));
-          return fields.every((f: number) => f >= 1 && f <= dataB.headers.length)
-            ? true
-            : 'Invalid field numbers';
-        },
-      },
-    ]);
+    let selectedFileAFields: number[] = [];
+    let selectedFileBFields: number[] = [];
 
-    const fileAFieldIndices = fileAFields.split(',').map((f: string) => parseInt(f.trim()) - 1);
-    const fileBFieldIndices = fileBFields.split(',').map((f: string) => parseInt(f.trim()) - 1);
+    while (true) {
+      const { fileAFields } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'fileAFields',
+          message: chalk.blue(
+            'Enter File A field numbers to compare (comma-separated, e.g., 1,2):'
+          ),
+          validate: (input: string) => {
+            const fields = parseSelection(input, dataA.headers.length);
+            return fields.length > 0 ? true : 'Invalid field numbers';
+          },
+        },
+      ]);
+
+      const parsedFileAFields = parseSelection(fileAFields, dataA.headers.length);
+
+      const { fileBFields } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'fileBFields',
+          message: chalk.blue(
+            'Enter File B field numbers to compare (comma-separated, e.g., 5,1):'
+          ),
+          validate: (input: string) => {
+            const fields = parseSelection(input, dataB.headers.length);
+            return fields.length > 0 ? true : 'Invalid field numbers';
+          },
+        },
+      ]);
+
+      const parsedFileBFields = parseSelection(fileBFields, dataB.headers.length);
+
+      if (parsedFileAFields.length !== parsedFileBFields.length) {
+        console.log();
+        console.log(
+          chalk.red.bold(
+            'Field selections must include the same number of columns for File A and File B.'
+          )
+        );
+        console.log(
+          chalk.yellow(
+            'Please enter matching counts so the comparison pairs up the correct columns.'
+          )
+        );
+        continue;
+      }
+
+      selectedFileAFields = parsedFileAFields;
+      selectedFileBFields = parsedFileBFields;
+      break;
+    }
+
+    const fileAFieldIndices = selectedFileAFields.map((value: number) => value - 1);
+    const fileBFieldIndices = selectedFileBFields.map((value: number) => value - 1);
 
     // Create comparison sets
     const fileASet = new Set<string>();
     dataA.rows.forEach(row => {
       const key = fileAFieldIndices
-        .map((index: number) => String(row[dataA.headers[index]] || ''))
+        .map((index: number) => {
+          const value = row[dataA.headers[index]];
+          return String(value ?? '');
+        })
         .join('|');
       fileASet.add(key);
     });
@@ -476,7 +527,10 @@ export class DataComparisonPlugin extends BasePlugin {
 
     dataB.rows.forEach(row => {
       const key = fileBFieldIndices
-        .map((index: number) => String(row[dataB.headers[index]] || ''))
+        .map((index: number) => {
+          const value = row[dataB.headers[index]];
+          return String(value ?? '');
+        })
         .join('|');
       if (fileASet.has(key)) {
         matchedRows.push(row);
@@ -523,8 +577,8 @@ export class DataComparisonPlugin extends BasePlugin {
       matchedRows,
       unmatchedRows,
       fieldMapping: {},
-      fileAFields: fileAFields.split(',').map((f: string) => parseInt(f.trim())),
-      fileBFields: fileBFields.split(',').map((f: string) => parseInt(f.trim())),
+      fileAFields: selectedFileAFields,
+      fileBFields: selectedFileBFields,
     };
   }
 
@@ -636,7 +690,8 @@ export class DataComparisonPlugin extends BasePlugin {
       const exportRow: any = {};
       outputHeaders.forEach(header => {
         const mappedField = fieldMapping[header];
-        exportRow[header] = row[mappedField] || '';
+        const value = mappedField ? row[mappedField] : undefined;
+        exportRow[header] = value ?? '';
       });
       return exportRow;
     });
@@ -704,7 +759,8 @@ export class DataComparisonPlugin extends BasePlugin {
       const exportRow: any = {};
       outputHeaders.forEach(header => {
         const mappedField = fieldMapping[header];
-        exportRow[header] = row[mappedField] || '';
+        const value = mappedField ? row[mappedField] : undefined;
+        exportRow[header] = value ?? '';
       });
       return exportRow;
     });

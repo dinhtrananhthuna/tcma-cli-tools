@@ -1,7 +1,7 @@
 import { BasePlugin } from '../core/base-plugin';
 import { UIUtils } from '../utils/ui-utils';
 import { CLI_CONFIG } from '../utils/constants';
-import { exec, spawn } from 'child_process';
+import { exec, spawn, SpawnOptionsWithoutStdio } from 'child_process';
 import { promisify } from 'util';
 import inquirer from 'inquirer';
 import * as fs from 'fs';
@@ -496,31 +496,80 @@ export class UpdatePlugin extends BasePlugin {
    */
   private async verifyUpdate(targetVersion: string): Promise<boolean> {
     try {
-      // Try to get version from the CLI
-      const { stdout: currentVersion } = await execAsync(
-        'tcmatools --version 2>/dev/null || echo "unknown"',
-        {
-          timeout: 5000,
-        }
-      );
-
-      if (currentVersion.includes(targetVersion)) {
+      const cliVersion = await this.tryGetCliVersion();
+      if (cliVersion && cliVersion.includes(targetVersion)) {
         return true;
       }
 
-      // Fallback: check if the package was updated in npm
-      const { stdout: packageInfo } = await execAsync(
-        'npm list -g tcma-cli-tools --depth=0 2>/dev/null || echo "not found"',
-        {
-          timeout: 5000,
-        }
-      );
+      const npmInfo = await this.runCommand('npm', [
+        'list',
+        '-g',
+        'tcma-cli-tools',
+        '--depth=0',
+        '--json',
+      ]);
 
-      return packageInfo.includes(targetVersion);
+      if (npmInfo.stdout.trim()) {
+        try {
+          const parsed = JSON.parse(npmInfo.stdout);
+          const installedVersion = parsed?.dependencies?.['tcma-cli-tools']?.version;
+          return typeof installedVersion === 'string' && installedVersion.includes(targetVersion);
+        } catch (jsonError) {
+          this.log(`Failed to parse npm list output: ${jsonError}`, 'warning');
+        }
+      }
+
+      return false;
     } catch (error) {
       this.log(`Update verification failed: ${error}`, 'warning');
       return false;
     }
+  }
+
+  private async tryGetCliVersion(): Promise<string | null> {
+    const executables = process.platform === 'win32'
+      ? ['tcmatools.cmd', 'tcmatools.exe', 'tcmatools']
+      : ['tcmatools'];
+
+    for (const executable of executables) {
+      try {
+        const result = await this.runCommand(executable, ['--version']);
+        if (result.exitCode === 0 && result.stdout.trim()) {
+          return result.stdout.trim();
+        }
+      } catch {
+        // Ignore and try next executable
+      }
+    }
+
+    return null;
+  }
+
+  private async runCommand(
+    command: string,
+    args: string[] = [],
+    options: SpawnOptionsWithoutStdio = {}
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(command, args, { ...options, shell: false });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout?.on('data', chunk => {
+        stdout += chunk.toString();
+      });
+
+      child.stderr?.on('data', chunk => {
+        stderr += chunk.toString();
+      });
+
+      child.on('error', reject);
+
+      child.on('close', code => {
+        resolve({ stdout, stderr, exitCode: code ?? 0 });
+      });
+    });
   }
 
   /**

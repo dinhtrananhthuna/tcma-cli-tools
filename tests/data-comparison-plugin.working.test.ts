@@ -152,6 +152,29 @@ describe('DataComparisonPlugin integration tests', () => {
     expect(exportUnmatchedSpy).not.toHaveBeenCalled();
   });
 
+  test('performDataComparison re-prompts until field counts match', async () => {
+    const dataA = await pluginAny.readFile(fileAPath);
+    const dataB = await pluginAny.readFile(fileBPath);
+
+    promptMock
+      .mockResolvedValueOnce({ fileAFields: '1,2' })
+      .mockResolvedValueOnce({ fileBFields: '1' })
+      .mockResolvedValueOnce({ fileAFields: '1,2' })
+      .mockResolvedValueOnce({ fileBFields: '1,2' })
+      .mockResolvedValueOnce({ exportUnmatched: false });
+
+    const exportUnmatchedSpy = jest
+      .spyOn(pluginAny, 'exportUnmatchedRows')
+      .mockResolvedValue(undefined);
+
+    const result = await pluginAny.performDataComparison(dataA, dataB);
+
+    expect(result.fileAFields).toEqual([1, 2]);
+    expect(result.fileBFields).toEqual([1, 2]);
+    expect(promptMock).toHaveBeenCalledTimes(5);
+    expect(exportUnmatchedSpy).not.toHaveBeenCalled();
+  });
+
   test('performDataComparisonWithConfig reuses saved configuration and can export unmatched rows', async () => {
     const dataA = await pluginAny.readFile(fileAPath);
     const dataB = await pluginAny.readFile(fileBPath);
@@ -454,6 +477,55 @@ describe('DataComparisonPlugin integration tests', () => {
       { headers: ['twitterId'], rows: [{ twitterId: '1' }] },
       config
     );
+    expect(handleExportChoiceSpy).toHaveBeenCalledTimes(1);
+    expect(showCompletionMenuSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('startWizard falls back to manual flow when saved configuration is invalid', async () => {
+    jest
+      .spyOn(pluginAny, 'selectFile')
+      .mockResolvedValueOnce('fileA.csv')
+      .mockResolvedValueOnce('fileB.csv');
+
+    jest
+      .spyOn(pluginAny, 'readFile')
+      .mockResolvedValueOnce({ headers: ['id'], rows: [{ id: '1' }] })
+      .mockResolvedValueOnce({ headers: ['twitterId'], rows: [{ twitterId: '1' }] });
+
+    jest.spyOn(pluginAny, 'checkForExistingConfig').mockResolvedValue({
+      fileAFields: [1],
+      fileBFields: [1, 2],
+      fieldMapping: { id: 'twitterId' },
+      createdAt: new Date().toISOString(),
+    });
+
+    promptMock.mockResolvedValueOnce({ useConfig: true });
+
+    const performDataComparisonWithConfigSpy = jest
+      .spyOn(pluginAny, 'performDataComparisonWithConfig')
+      .mockResolvedValue({ matchedRows: [], unmatchedRows: [], fieldMapping: {} });
+    const performDataComparisonSpy = jest
+      .spyOn(pluginAny, 'performDataComparison')
+      .mockResolvedValue({
+        matchedRows: [],
+        unmatchedRows: [],
+        fieldMapping: {},
+        fileAFields: [1],
+        fileBFields: [1],
+      });
+    const performFieldMappingSpy = jest
+      .spyOn(pluginAny, 'performFieldMapping')
+      .mockResolvedValue({ id: 'twitterId' });
+    const saveConfigPromptSpy = jest.spyOn(pluginAny, 'saveConfigPrompt').mockResolvedValue(undefined);
+    const handleExportChoiceSpy = jest.spyOn(pluginAny, 'handleExportChoice').mockResolvedValue(undefined);
+    const showCompletionMenuSpy = jest.spyOn(pluginAny, 'showCompletionMenu').mockResolvedValue(undefined);
+
+    await pluginAny.startWizard();
+
+    expect(performDataComparisonWithConfigSpy).not.toHaveBeenCalled();
+    expect(performDataComparisonSpy).toHaveBeenCalledTimes(1);
+    expect(performFieldMappingSpy).toHaveBeenCalledTimes(1);
+    expect(saveConfigPromptSpy).toHaveBeenCalledTimes(1);
     expect(handleExportChoiceSpy).toHaveBeenCalledTimes(1);
     expect(showCompletionMenuSpy).toHaveBeenCalledTimes(1);
   });
