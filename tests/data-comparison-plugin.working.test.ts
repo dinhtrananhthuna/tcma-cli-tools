@@ -1,513 +1,469 @@
-/**
- * Working Test Suite for DataComparisonPlugin
- *
- * This test suite tests the core functionality of the DataComparisonPlugin
- * using a simpler approach that avoids ES module import issues.
- */
+jest.mock('fs', () => {
+  const actual = jest.requireActual('fs');
+  return {
+    ...actual,
+    readdirSync: jest.fn((...args: Parameters<typeof actual.readdirSync>) =>
+      actual.readdirSync(...args)
+    ),
+    statSync: jest.fn((...args: Parameters<typeof actual.statSync>) => actual.statSync(...args)),
+    existsSync: jest.fn((...args: Parameters<typeof actual.existsSync>) =>
+      actual.existsSync(...args)
+    ),
+    readFileSync: jest.fn((...args: Parameters<typeof actual.readFileSync>) =>
+      actual.readFileSync(...args)
+    ),
+    writeFileSync: jest.fn((...args: Parameters<typeof actual.writeFileSync>) =>
+      actual.writeFileSync(...args)
+    ),
+  };
+});
+
+jest.mock('inquirer', () => ({
+  __esModule: true,
+  default: {
+    prompt: jest.fn(),
+  },
+}));
+
+const createObjectCsvWriterMock = jest.fn();
+const writeRecordsMocks: jest.Mock[] = [];
+
+jest.mock('csv-writer', () => ({
+  __esModule: true,
+  createObjectCsvWriter: createObjectCsvWriterMock,
+}));
+
+createObjectCsvWriterMock.mockImplementation(() => {
+  const writeRecords = jest.fn().mockResolvedValue(undefined);
+  writeRecordsMocks.push(writeRecords);
+  return { writeRecords };
+});
 
 import * as fs from 'fs';
 import * as path from 'path';
+import inquirer from 'inquirer';
 
-// Test data paths
+import { DataComparisonPlugin } from '../src/plugins/data-comparison-plugin';
+
+const promptMock = inquirer.prompt as unknown as jest.Mock;
+
 const sampleDir = path.resolve(__dirname, '../sample');
 const fileAPath = path.join(sampleDir, 'fileA.csv');
 const fileBPath = path.join(sampleDir, 'fileB.csv');
+const fileAXlsx = path.join(sampleDir, 'fileA.xlsx');
 
-describe('DataComparisonPlugin - Core Logic Tests', () => {
-  // Simple comparison key creation logic (extracted from plugin)
-  function createComparisonKey(row: any, headers: string[], fieldIndices: number[]): string {
-    return fieldIndices
-      .map((index: number) => String(row[headers[index]] || ''))
-      .join('|');
-  }
+let plugin: DataComparisonPlugin;
+let pluginAny: any;
 
-  // Simple CSV reading simulation
-  function readCSVFileSimple(filePath: string): { headers: string[], rows: any[] } {
-    const content = fs.readFileSync(filePath, 'utf8');
-    const lines = content.trim().split('\n');
+beforeEach(() => {
+  jest.clearAllMocks();
+  plugin = new DataComparisonPlugin();
+  pluginAny = plugin as any;
+  promptMock.mockReset();
+  writeRecordsMocks.length = 0;
+  createObjectCsvWriterMock.mockClear();
+});
 
-    if (lines.length === 0) {
-      return { headers: [], rows: [] };
-    }
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
-    const headers = lines[0].split(',').map(h => h.trim());
-    const rows = lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim());
-      const row: any = {};
-      headers.forEach((header, index) => {
-        row[header] = values[index] || '';
-      });
-      return row;
+describe('DataComparisonPlugin integration tests', () => {
+  test('execute delegates to showMainMenu', async () => {
+    const showMainMenuSpy = jest.spyOn(pluginAny, 'showMainMenu').mockResolvedValue(undefined);
+
+    await plugin.execute('compare');
+
+    expect(showMainMenuSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('showMainMenu exits when user chooses exit', async () => {
+    promptMock.mockResolvedValueOnce({ action: 'exit' });
+    const startWizardSpy = jest.spyOn(pluginAny, 'startWizard').mockResolvedValue(undefined);
+
+    await pluginAny.showMainMenu();
+
+    expect(promptMock).toHaveBeenCalledTimes(1);
+    expect(startWizardSpy).not.toHaveBeenCalled();
+  });
+
+  test('getAvailableFiles returns sorted CSV/XLSX files', () => {
+    const readdirMock = fs.readdirSync as jest.Mock;
+    const statMock = fs.statSync as jest.Mock;
+
+    readdirMock.mockReturnValueOnce(['b.xlsx', 'a.csv', 'notes.txt']);
+    statMock
+      .mockImplementationOnce(() => ({ isFile: () => true }))
+      .mockImplementationOnce(() => ({ isFile: () => true }))
+      .mockImplementationOnce(() => ({ isFile: () => false }));
+
+    const available = pluginAny.getAvailableFiles();
+
+    expect(available).toEqual(['a.csv', 'b.xlsx']);
+  });
+
+  test('selectFile returns user choice from available files', async () => {
+    jest.spyOn(pluginAny, 'getAvailableFiles').mockReturnValue(['a.csv', 'b.xlsx']);
+    promptMock.mockResolvedValueOnce({ selectedFile: 'b.xlsx' });
+
+    const selected = await pluginAny.selectFile('reference', 'Choose file');
+
+    expect(selected).toBe('b.xlsx');
+  });
+
+  test('readFile parses CSV files via readCSVFile', async () => {
+    const data = await pluginAny.readFile(fileAPath);
+
+    expect(data.headers).toContain('postId');
+    expect(data.rows).toHaveLength(5);
+    expect(data.rows[0]).toHaveProperty('postId', '101');
+  });
+
+  test('readFile parses XLSX files via readExcelFile', async () => {
+    const data = await pluginAny.readFile(fileAXlsx);
+
+    expect(data.headers).toContain('postId');
+    expect(data.rows.length).toBeGreaterThan(0);
+  });
+
+  test('readFile throws on unsupported extensions', async () => {
+    await expect(pluginAny.readFile('unsupported.json')).rejects.toThrow('Unsupported file format');
+  });
+
+  test('performDataComparison compares rows using prompt selections', async () => {
+    const dataA = await pluginAny.readFile(fileAPath);
+    const dataB = await pluginAny.readFile(fileBPath);
+
+    promptMock
+      .mockResolvedValueOnce({ fileAFields: '2' })
+      .mockResolvedValueOnce({ fileBFields: '1' })
+      .mockResolvedValueOnce({ exportUnmatched: false });
+
+    const exportUnmatchedSpy = jest
+      .spyOn(pluginAny, 'exportUnmatchedRows')
+      .mockResolvedValue(undefined);
+
+    const result = await pluginAny.performDataComparison(dataA, dataB);
+
+    expect(result.matchedRows).toHaveLength(5);
+    expect(result.unmatchedRows).toHaveLength(3);
+    expect(result.fileAFields).toEqual([2]);
+    expect(result.fileBFields).toEqual([1]);
+    expect(exportUnmatchedSpy).not.toHaveBeenCalled();
+  });
+
+  test('performDataComparisonWithConfig reuses saved configuration and can export unmatched rows', async () => {
+    const dataA = await pluginAny.readFile(fileAPath);
+    const dataB = await pluginAny.readFile(fileBPath);
+
+    const config = {
+      fileAFields: [2],
+      fileBFields: [1],
+      fieldMapping: { id: 'twitterDetails_postId' },
+      createdAt: new Date().toISOString(),
+    };
+
+    promptMock.mockResolvedValueOnce({ exportUnmatched: true });
+    const exportUnmatchedSpy = jest
+      .spyOn(pluginAny, 'exportUnmatchedRows')
+      .mockResolvedValue(undefined);
+
+    const result = await pluginAny.performDataComparisonWithConfig(dataA, dataB, config);
+
+    expect(result.matchedRows).toHaveLength(5);
+    expect(result.unmatchedRows).toHaveLength(3);
+    expect(result.fieldMapping).toEqual(config.fieldMapping);
+    expect(exportUnmatchedSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('performFieldMapping collects mapping for each File A header', async () => {
+    const dataA = await pluginAny.readFile(fileAPath);
+    const dataB = await pluginAny.readFile(fileBPath);
+
+    dataA.headers.forEach((header: string) => {
+      promptMock.mockResolvedValueOnce({ selectedField: dataB.headers[0] });
     });
 
-    return { headers, rows };
-  }
+    const mapping = await pluginAny.performFieldMapping(dataA.headers, dataB.headers);
 
-  describe('File Reading Logic', () => {
-    test('should read fileA.csv correctly', () => {
-      const fileData = readCSVFileSimple(fileAPath);
-
-      expect(fileData.headers).toEqual(['id', 'postId', 'postContent', 'postDate']);
-      expect(fileData.rows).toHaveLength(5);
-      expect(fileData.rows[0]).toEqual({
-        id: '1',
-        postId: '101',
-        postContent: '"Hello World"',
-        postDate: '2024-01-01'
-      });
+    dataA.headers.forEach((header: string) => {
+      expect(mapping[header]).toBe(dataB.headers[0]);
     });
+  });
 
-    test('should read fileB.csv correctly', () => {
-      const fileData = readCSVFileSimple(fileBPath);
+  test('saveConfigPrompt saves configuration when user confirms', async () => {
+    promptMock
+      .mockResolvedValueOnce({ saveConfig: true })
+      .mockResolvedValueOnce({ description: 'Test config' });
 
-      expect(fileData.headers).toEqual([
-        'twitterDetails_postId',
-        'twitterDetails_postContent',
-        'twitterDetails_showcaseLink',
-        'twitterDetails_postDate',
-        'id',
-        'contentMainId'
-      ]);
-      expect(fileData.rows).toHaveLength(8);
-      expect(fileData.rows[0]).toEqual({
+    const saveConfigSpy = jest.spyOn(pluginAny, 'saveConfig').mockResolvedValue(undefined);
+
+    await pluginAny.saveConfigPrompt([1], [2], { id: 'twitterDetails_postId' });
+
+    expect(saveConfigSpy).toHaveBeenCalledWith([1], [2], { id: 'twitterDetails_postId' }, 'Test config');
+  });
+
+  test('saveConfigPrompt skips save when user declines', async () => {
+    promptMock.mockResolvedValueOnce({ saveConfig: false });
+    const saveConfigSpy = jest.spyOn(pluginAny, 'saveConfig').mockResolvedValue(undefined);
+
+    await pluginAny.saveConfigPrompt([1], [2], {});
+
+    expect(saveConfigSpy).not.toHaveBeenCalled();
+  });
+
+  test('saveConfig writes configuration file', async () => {
+    const writeFileMock = fs.writeFileSync as jest.Mock;
+    writeFileMock.mockImplementationOnce(() => undefined);
+
+    await pluginAny.saveConfig([1], [2], { id: 'mapped' }, 'desc');
+
+    expect(writeFileMock).toHaveBeenCalledTimes(1);
+    const [, payload] = writeFileMock.mock.calls[0];
+    const parsed = JSON.parse(payload as string);
+    expect(parsed.fileAFields).toEqual([1]);
+    expect(parsed.fileBFields).toEqual([2]);
+    expect(parsed.fieldMapping).toEqual({ id: 'mapped' });
+    expect(parsed.description).toBe('desc');
+  });
+
+  test('checkForExistingConfig returns parsed configuration info', async () => {
+    const fakeConfigPath = path.resolve('data-comparison-config.json');
+    const configData = {
+      fileAFields: [1],
+      fileBFields: [2],
+      fieldMapping: { id: 'mapped' },
+      createdAt: '2024-01-01T00:00:00Z',
+    };
+
+    const existsSyncMock = fs.existsSync as jest.Mock;
+    const readFileSyncMock = fs.readFileSync as jest.Mock;
+
+    existsSyncMock.mockReturnValueOnce(true);
+    readFileSyncMock.mockReturnValueOnce(JSON.stringify(configData));
+
+    const result = await pluginAny.checkForExistingConfig();
+
+    expect(result).toEqual(configData);
+    expect(existsSyncMock).toHaveBeenCalledWith(fakeConfigPath);
+  });
+
+  test('checkForExistingConfig handles malformed configuration gracefully', async () => {
+    const existsSyncMock = fs.existsSync as jest.Mock;
+    const readFileSyncMock = fs.readFileSync as jest.Mock;
+
+    existsSyncMock.mockReturnValueOnce(true);
+    readFileSyncMock.mockReturnValueOnce('not json');
+
+    const result = await pluginAny.checkForExistingConfig();
+
+    expect(result).toBeNull();
+  });
+
+  test('handleExportChoice exports only matched rows when chosen', async () => {
+    const dataA = await pluginAny.readFile(fileAPath);
+    const dataB = await pluginAny.readFile(fileBPath);
+
+    promptMock.mockResolvedValueOnce({ exportChoice: 'matched-only' });
+
+    const exportMatchedRowsSpy = jest
+      .spyOn(pluginAny, 'exportMatchedRows')
+      .mockResolvedValue(undefined);
+    const exportAllFileBRowsSpy = jest
+      .spyOn(pluginAny, 'exportAllFileBRows')
+      .mockResolvedValue(undefined);
+
+    await pluginAny.handleExportChoice(
+      {
+        matchedRows: dataB.rows.slice(0, 2),
+        unmatchedRows: dataB.rows.slice(2, 3),
+        fieldMapping: {},
+      },
+      { id: 'twitterDetails_postId' },
+      dataA,
+      dataB
+    );
+
+    expect(exportMatchedRowsSpy).toHaveBeenCalledTimes(1);
+    expect(exportAllFileBRowsSpy).not.toHaveBeenCalled();
+  });
+
+  test('handleExportChoice exports all File B rows when chosen', async () => {
+    const dataA = await pluginAny.readFile(fileAPath);
+    const dataB = await pluginAny.readFile(fileBPath);
+
+    promptMock.mockResolvedValueOnce({ exportChoice: 'all-fileb' });
+
+    const exportMatchedRowsSpy = jest
+      .spyOn(pluginAny, 'exportMatchedRows')
+      .mockResolvedValue(undefined);
+    const exportAllFileBRowsSpy = jest
+      .spyOn(pluginAny, 'exportAllFileBRows')
+      .mockResolvedValue(undefined);
+
+    await pluginAny.handleExportChoice(
+      {
+        matchedRows: dataB.rows.slice(0, 2),
+        unmatchedRows: dataB.rows.slice(2, 3),
+        fieldMapping: {},
+      },
+      { id: 'twitterDetails_postId' },
+      dataA,
+      dataB
+    );
+
+    expect(exportAllFileBRowsSpy).toHaveBeenCalledTimes(1);
+    expect(exportMatchedRowsSpy).not.toHaveBeenCalled();
+  });
+
+  test('exportToCSV writes mapped rows via csv-writer', async () => {
+    const matchedRows = [
+      {
         twitterDetails_postId: '101',
-        twitterDetails_postContent: '"Hello World Tweet"',
-        twitterDetails_showcaseLink: '"https://twitter.com/1"',
-        twitterDetails_postDate: '2024-01-01',
-        id: '1',
-        contentMainId: '1001'
-      });
-    });
+        twitterDetails_postContent: 'Hello',
+      },
+    ];
+    const mapping = {
+      postId: 'twitterDetails_postId',
+      content: 'twitterDetails_postContent',
+    };
+    const headers = Object.keys(mapping);
 
-    test('should handle empty CSV file', () => {
-      const emptyFile = path.join(sampleDir, 'empty.csv');
-      fs.writeFileSync(emptyFile, '');
+    await pluginAny.exportToCSV(matchedRows, mapping, headers);
 
-      const fileData = readCSVFileSimple(emptyFile);
-      expect(fileData.headers).toEqual(['']);
-      expect(fileData.rows).toEqual([]);
-
-      // Clean up
-      fs.unlinkSync(emptyFile);
-    });
-
-    test('should handle CSV file with only headers', () => {
-      const headerOnlyFile = path.join(sampleDir, 'headers-only.csv');
-      fs.writeFileSync(headerOnlyFile, 'col1,col2,col3\n');
-
-      const fileData = readCSVFileSimple(headerOnlyFile);
-      expect(fileData.headers).toEqual(['col1', 'col2', 'col3']);
-      expect(fileData.rows).toEqual([]);
-
-      // Clean up
-      fs.unlinkSync(headerOnlyFile);
-    });
+    expect(createObjectCsvWriterMock).toHaveBeenCalledTimes(1);
+    expect(writeRecordsMocks).toHaveLength(1);
+    expect(writeRecordsMocks[0]).toHaveBeenCalledWith([
+      { postId: '101', content: 'Hello' },
+    ]);
   });
 
-  describe('Comparison Key Creation', () => {
-    test('should create comparison key correctly', () => {
-      const row = {
-        id: '1',
-        postId: '101',
-        postContent: 'Hello World',
-        postDate: '2024-01-01'
-      };
-      const headers = ['id', 'postId', 'postContent', 'postDate'];
-      const fieldIndices = [0, 1]; // Use id and postId for comparison
+  test('exportAllFileBRows maps every row to File A structure', async () => {
+    const dataB = await pluginAny.readFile(fileBPath);
+    const mapping = {
+      id: 'twitterDetails_postId',
+      postContent: 'twitterDetails_postContent',
+    };
+    const headers = Object.keys(mapping);
 
-      const key = createComparisonKey(row, headers, fieldIndices);
-      expect(key).toBe('1|101');
-    });
+    await pluginAny.exportAllFileBRows(dataB.rows.slice(0, 2), mapping, headers);
 
-    test('should handle empty values in comparison key', () => {
-      const row = {
-        id: '1',
-        postId: '',
-        postContent: 'Hello World',
-        postDate: '2024-01-01'
-      };
-      const headers = ['id', 'postId', 'postContent', 'postDate'];
-      const fieldIndices = [0, 1]; // Use id and postId for comparison
-
-      const key = createComparisonKey(row, headers, fieldIndices);
-      expect(key).toBe('1|');
-    });
-
-    test('should handle single field comparison', () => {
-      const row = {
-        id: '1',
-        postId: '101',
-        postContent: 'Hello World',
-        postDate: '2024-01-01'
-      };
-      const headers = ['id', 'postId', 'postContent', 'postDate'];
-      const fieldIndices = [1]; // Use only postId
-
-      const key = createComparisonKey(row, headers, fieldIndices);
-      expect(key).toBe('101');
-    });
+    expect(writeRecordsMocks).toHaveLength(1);
+    const callPayload = writeRecordsMocks[0].mock.calls[0][0] as Array<Record<string, string>>;
+    expect(callPayload[0]).toHaveProperty('id');
+    expect(callPayload[0]).toHaveProperty('postContent');
   });
 
-  describe('Data Comparison Logic', () => {
-    test('should compare files using postId matching', () => {
-      const fileAData = readCSVFileSimple(fileAPath);
-      const fileBData = readCSVFileSimple(fileBPath);
+  test('ensureCsvBom prepends BOM when missing', () => {
+    const tempFile = path.join(sampleDir, 'temp-bom.csv');
+    fs.writeFileSync(tempFile, 'header1,header2\nvalue1,value2');
 
-      // Find postId index in fileA (index 1) and twitterDetails_postId index in fileB (index 0)
-      const fileAFieldIndex = 1; // postId
-      const fileBFieldIndex = 0; // twitterDetails_postId
+    pluginAny.ensureCsvBom(tempFile);
 
-      // Create comparison set from fileA
-      const fileASet = new Set<string>();
-      fileAData.rows.forEach(row => {
-        const key = createComparisonKey(row, fileAData.headers, [fileAFieldIndex]);
-        fileASet.add(key);
-      });
+    const buffer = fs.readFileSync(tempFile);
+    expect(buffer[0]).toBe(0xef);
+    expect(buffer[1]).toBe(0xbb);
+    expect(buffer[2]).toBe(0xbf);
 
-      // Find matches in fileB
-      const matchedRows: any[] = [];
-      const unmatchedRows: any[] = [];
-
-      fileBData.rows.forEach(row => {
-        const key = createComparisonKey(row, fileBData.headers, [fileBFieldIndex]);
-        if (fileASet.has(key)) {
-          matchedRows.push(row);
-        } else {
-          unmatchedRows.push(row);
-        }
-      });
-
-      expect(matchedRows.length).toBe(5); // Posts 101, 102, 103, 104, 105 should match
-      expect(unmatchedRows.length).toBe(3); // Posts 106, 107, 108 should be unmatched
-
-      // Verify specific matches
-      const matchedPostIds = matchedRows.map(row => row.twitterDetails_postId);
-      expect(matchedPostIds).toContain('101');
-      expect(matchedPostIds).toContain('102');
-      expect(matchedPostIds).toContain('103');
-      expect(matchedPostIds).toContain('104');
-      expect(matchedPostIds).toContain('105');
-
-      // Verify specific unmatched
-      const unmatchedPostIds = unmatchedRows.map(row => row.twitterDetails_postId);
-      expect(unmatchedPostIds).toContain('106');
-      expect(unmatchedPostIds).toContain('107');
-      expect(unmatchedPostIds).toContain('108');
-    });
-
-    test('should compare files using multiple fields', () => {
-      const fileAData = readCSVFileSimple(fileAPath);
-      const fileBData = readCSVFileSimple(fileBPath);
-
-      // Use postId (index 1) and postDate (index 3) from fileA
-      // Use twitterDetails_postId (index 0) and twitterDetails_postDate (index 3) from fileB
-      const fileAFieldIndices = [1, 3]; // postId and postDate
-      const fileBFieldIndices = [0, 3]; // twitterDetails_postId and twitterDetails_postDate
-
-      // Create comparison set from fileA
-      const fileASet = new Set<string>();
-      fileAData.rows.forEach(row => {
-        const key = createComparisonKey(row, fileAData.headers, fileAFieldIndices);
-        fileASet.add(key);
-      });
-
-      // Find matches in fileB
-      const matchedRows: any[] = [];
-      const unmatchedRows: any[] = [];
-
-      fileBData.rows.forEach(row => {
-        const key = createComparisonKey(row, fileBData.headers, fileBFieldIndices);
-        if (fileASet.has(key)) {
-          matchedRows.push(row);
-        } else {
-          unmatchedRows.push(row);
-        }
-      });
-
-      expect(matchedRows.length).toBe(5); // Same 5 matches
-      expect(unmatchedRows.length).toBe(3); // Same 3 unmatched
-    });
+    fs.unlinkSync(tempFile);
   });
 
-  describe('Field Mapping Logic', () => {
-    test('should create field mapping correctly', () => {
-      const fileAHeaders = ['id', 'postId', 'postContent', 'postDate'];
-      const fileBHeaders = ['twitterDetails_postId', 'twitterDetails_postContent', 'twitterDetails_showcaseLink', 'twitterDetails_postDate'];
+  test('ensureCsvBom leaves existing BOM intact', () => {
+    const tempFile = path.join(sampleDir, 'temp-existing-bom.csv');
+    const content = Buffer.concat([
+      Buffer.from([0xef, 0xbb, 0xbf]),
+      Buffer.from('header1,header2\nvalue1,value2'),
+    ]);
+    fs.writeFileSync(tempFile, content);
 
-      // Simulate user mapping choices
-      const fieldMapping = {
-        'id': 'twitterDetails_postId',         // Map id to twitterDetails_postId
-        'postId': 'twitterDetails_postContent', // Map postId to twitterDetails_postContent
-        'postContent': 'twitterDetails_showcaseLink', // Map postContent to twitterDetails_showcaseLink
-        'postDate': 'twitterDetails_postDate'   // Map postDate to twitterDetails_postDate
-      };
+    pluginAny.ensureCsvBom(tempFile);
 
-      // Verify mapping is complete
-      fileAHeaders.forEach(header => {
-        expect(fieldMapping[header as keyof typeof fieldMapping]).toBeDefined();
-        expect(fileBHeaders).toContain(fieldMapping[header as keyof typeof fieldMapping]);
-      });
-    });
+    const buffer = fs.readFileSync(tempFile);
+    expect(buffer.slice(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
+    expect(buffer.length).toBe(content.length);
+
+    fs.unlinkSync(tempFile);
   });
 
-  describe('Configuration Management', () => {
-    test('should save and load configuration correctly', () => {
-      const config = {
-        fileAFields: [2],
-        fileBFields: [1],
-        fieldMapping: { 'postContent': 'twitterDetails_postContent' },
-        createdAt: new Date().toISOString(),
-        description: 'Test configuration'
-      };
-
-      const configPath = path.resolve(sampleDir, 'test-config.json');
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-
-      // Load and verify configuration
-      const loadedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      expect(loadedConfig).toEqual(config);
-
-      // Clean up
-      fs.unlinkSync(configPath);
+  test('startWizard manual flow orchestrates comparison pipeline', async () => {
+    const selectFileSpy = jest
+      .spyOn(pluginAny, 'selectFile')
+      .mockResolvedValueOnce('fileA.csv')
+      .mockResolvedValueOnce('fileB.csv');
+    const readFileSpy = jest
+      .spyOn(pluginAny, 'readFile')
+      .mockResolvedValueOnce({ headers: ['id'], rows: [{ id: '1' }] })
+      .mockResolvedValueOnce({ headers: ['twitterId'], rows: [{ twitterId: '1' }] });
+    const checkConfigSpy = jest.spyOn(pluginAny, 'checkForExistingConfig').mockResolvedValue(null);
+    const performComparisonSpy = jest.spyOn(pluginAny, 'performDataComparison').mockResolvedValue({
+      matchedRows: [{ twitterId: '1' }],
+      unmatchedRows: [],
+      fieldMapping: {},
+      fileAFields: [1],
+      fileBFields: [1],
     });
+    const performFieldMappingSpy = jest
+      .spyOn(pluginAny, 'performFieldMapping')
+      .mockResolvedValue({ id: 'twitterId' });
+    const saveConfigPromptSpy = jest.spyOn(pluginAny, 'saveConfigPrompt').mockResolvedValue(undefined);
+    const handleExportChoiceSpy = jest.spyOn(pluginAny, 'handleExportChoice').mockResolvedValue(undefined);
+    const showCompletionMenuSpy = jest.spyOn(pluginAny, 'showCompletionMenu').mockResolvedValue(undefined);
 
-    test('should handle corrupted configuration file', () => {
-      const configPath = path.resolve(sampleDir, 'corrupted-config.json');
-      fs.writeFileSync(configPath, 'invalid json content');
+    await pluginAny.startWizard();
 
-      expect(() => {
-        JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      }).toThrow();
-
-      // Clean up
-      fs.unlinkSync(configPath);
-    });
+    expect(selectFileSpy).toHaveBeenCalledTimes(2);
+    expect(readFileSpy).toHaveBeenCalledTimes(2);
+    expect(checkConfigSpy).toHaveBeenCalledTimes(1);
+    expect(performComparisonSpy).toHaveBeenCalledTimes(1);
+    expect(performFieldMappingSpy).toHaveBeenCalledTimes(1);
+    expect(saveConfigPromptSpy).toHaveBeenCalledWith([1], [1], { id: 'twitterId' });
+    expect(handleExportChoiceSpy).toHaveBeenCalledTimes(1);
+    expect(showCompletionMenuSpy).toHaveBeenCalledTimes(1);
   });
 
-  describe('Export Functionality', () => {
-    test('should ensure UTF-8 BOM is added to CSV files', () => {
-      const testFile = path.join(sampleDir, 'test-bom.csv');
-      const testContent = Buffer.from('header1,header2\nvalue1,value2');
-      fs.writeFileSync(testFile, testContent);
+  test('startWizard uses saved configuration when available', async () => {
+    jest
+      .spyOn(pluginAny, 'selectFile')
+      .mockResolvedValueOnce('fileA.csv')
+      .mockResolvedValueOnce('fileB.csv');
+    jest
+      .spyOn(pluginAny, 'readFile')
+      .mockResolvedValueOnce({ headers: ['id'], rows: [{ id: '1' }] })
+      .mockResolvedValueOnce({ headers: ['twitterId'], rows: [{ twitterId: '1' }] });
 
-      // Simulate BOM addition
-      const content = fs.readFileSync(testFile);
-      const hasBom = content.length >= 3 &&
-                     content[0] === 0xEF &&
-                     content[1] === 0xBB &&
-                     content[2] === 0xBF;
+    const config = {
+      fileAFields: [1],
+      fileBFields: [1],
+      fieldMapping: { id: 'twitterId' },
+      createdAt: new Date().toISOString(),
+    };
 
-      if (!hasBom) {
-        const bom = Buffer.from([0xEF, 0xBB, 0xBF]);
-        const withBom = Buffer.concat([bom, content]);
-        fs.writeFileSync(testFile, withBom);
-      }
+    jest.spyOn(pluginAny, 'checkForExistingConfig').mockResolvedValue(config);
+    promptMock.mockResolvedValueOnce({ useConfig: true });
 
-      // Verify BOM was added
-      const finalContent = fs.readFileSync(testFile);
-      expect(finalContent[0]).toBe(0xEF); // BOM first byte
-      expect(finalContent[1]).toBe(0xBB); // BOM second byte
-      expect(finalContent[2]).toBe(0xBF); // BOM third byte
+    const performDataComparisonWithConfigSpy = jest
+      .spyOn(pluginAny, 'performDataComparisonWithConfig')
+      .mockResolvedValue({ matchedRows: [], unmatchedRows: [], fieldMapping: config.fieldMapping });
+    const handleExportChoiceSpy = jest.spyOn(pluginAny, 'handleExportChoice').mockResolvedValue(undefined);
+    const showCompletionMenuSpy = jest.spyOn(pluginAny, 'showCompletionMenu').mockResolvedValue(undefined);
 
-      // Clean up
-      fs.unlinkSync(testFile);
-    });
+    await pluginAny.startWizard();
 
-    test('should not add BOM if already present', () => {
-      const testFile = path.join(sampleDir, 'test-with-bom.csv');
-      const testContentWithBOM = Buffer.concat([
-        Buffer.from([0xEF, 0xBB, 0xBF]), // BOM
-        Buffer.from('header1,header2\nvalue1,value2')
-      ]);
-      fs.writeFileSync(testFile, testContentWithBOM);
-
-      const originalSize = fs.statSync(testFile).size;
-
-      // Check if BOM already exists
-      const content = fs.readFileSync(testFile);
-      const hasBom = content.length >= 3 &&
-                     content[0] === 0xEF &&
-                     content[1] === 0xBB &&
-                     content[2] === 0xBF;
-
-      expect(hasBom).toBe(true);
-      expect(content.length).toBe(originalSize); // Size should not change
-
-      // Clean up
-      fs.unlinkSync(testFile);
-    });
+    expect(performDataComparisonWithConfigSpy).toHaveBeenCalledWith(
+      { headers: ['id'], rows: [{ id: '1' }] },
+      { headers: ['twitterId'], rows: [{ twitterId: '1' }] },
+      config
+    );
+    expect(handleExportChoiceSpy).toHaveBeenCalledTimes(1);
+    expect(showCompletionMenuSpy).toHaveBeenCalledTimes(1);
   });
 
-  describe('Error Handling', () => {
-    test('should handle file not found error', () => {
-      const nonExistentFile = path.join(sampleDir, 'non-existent.csv');
+  test('startWizard logs and shows footer when an error is thrown', async () => {
+    const showPluginFooterSpy = jest.spyOn(pluginAny, 'showPluginFooter').mockResolvedValue(undefined);
+    jest.spyOn(pluginAny, 'selectFile').mockRejectedValue(new Error('boom'));
 
-      expect(() => {
-        fs.readFileSync(nonExistentFile);
-      }).toThrow();
-    });
+    await pluginAny.startWizard();
 
-    test('should handle malformed CSV data', () => {
-      const malformedFile = path.join(sampleDir, 'malformed.csv');
-      fs.writeFileSync(malformedFile, 'header1,header2\nvalue1'); // Missing value for header2
-
-      const fileData = readCSVFileSimple(malformedFile);
-      expect(fileData.rows[0]).toEqual({ header1: 'value1', header2: '' });
-
-      // Clean up
-      fs.unlinkSync(malformedFile);
-    });
-
-    test('should handle empty values in data', () => {
-      const fileWithEmptyValues = path.join(sampleDir, 'empty-values.csv');
-      fs.writeFileSync(fileWithEmptyValues, 'header1,header2\nvalue1,\n,value3');
-
-      const fileData = readCSVFileSimple(fileWithEmptyValues);
-      expect(fileData.rows[0]).toEqual({ header1: 'value1', header2: '' });
-      expect(fileData.rows[1]).toEqual({ header1: '', header2: 'value3' });
-
-      // Clean up
-      fs.unlinkSync(fileWithEmptyValues);
-    });
-  });
-
-  describe('Integration Scenarios', () => {
-    test('should complete end-to-end comparison workflow', () => {
-      // Step 1: Read both files
-      const fileAData = readCSVFileSimple(fileAPath);
-      const fileBData = readCSVFileSimple(fileBPath);
-
-      // Step 2: Configure comparison (postId matching)
-      const fileAFieldIndices = [1]; // postId
-      const fileBFieldIndices = [0]; // twitterDetails_postId
-
-      // Step 3: Create comparison set from fileA
-      const fileASet = new Set<string>();
-      fileAData.rows.forEach(row => {
-        const key = createComparisonKey(row, fileAData.headers, fileAFieldIndices);
-        fileASet.add(key);
-      });
-
-      // Step 4: Find matches in fileB
-      const matchedRows: any[] = [];
-      const unmatchedRows: any[] = [];
-
-      fileBData.rows.forEach(row => {
-        const key = createComparisonKey(row, fileBData.headers, fileBFieldIndices);
-        if (fileASet.has(key)) {
-          matchedRows.push(row);
-        } else {
-          unmatchedRows.push(row);
-        }
-      });
-
-      // Step 5: Verify results
-      expect(matchedRows.length).toBe(5); // All 5 posts from fileA should match
-      expect(unmatchedRows.length).toBe(3); // 3 additional posts in fileB
-
-      // Step 6: Simulate field mapping
-      const fieldMapping = {
-        'id': 'twitterDetails_postId',
-        'postId': 'twitterDetails_postContent',
-        'postContent': 'twitterDetails_showcaseLink',
-        'postDate': 'twitterDetails_postDate'
-      };
-
-      // Step 7: Simulate export of matched rows with field mapping
-      const exportData = matchedRows.map(row => {
-        const exportRow: any = {};
-        fileAData.headers.forEach(header => {
-          const mappedField = fieldMapping[header as keyof typeof fieldMapping];
-          exportRow[header] = row[mappedField] || '';
-        });
-        return exportRow;
-      });
-
-      // Verify export data structure
-      expect(exportData).toHaveLength(matchedRows.length);
-      exportData.forEach(row => {
-        expect(row).toHaveProperty('id');
-        expect(row).toHaveProperty('postId');
-        expect(row).toHaveProperty('postContent');
-        expect(row).toHaveProperty('postDate');
-      });
-    });
-
-    test('should handle different comparison scenarios', () => {
-      const fileAData = readCSVFileSimple(fileAPath);
-      const fileBData = readCSVFileSimple(fileBPath);
-
-      // Test scenario 1: No matches
-      const fileASet = new Set<string>();
-      fileASet.add('999'); // Non-existent postId
-
-      const matchedRows: any[] = [];
-      fileBData.rows.forEach(row => {
-        if (fileASet.has(row.twitterDetails_postId)) {
-          matchedRows.push(row);
-        }
-      });
-
-      expect(matchedRows).toHaveLength(0);
-
-      // Test scenario 2: All matches
-      const allPostIds = fileBData.rows.map(row => row.twitterDetails_postId);
-      const allFileASet = new Set(allPostIds);
-
-      const allMatchedRows: any[] = [];
-      fileBData.rows.forEach(row => {
-        if (allFileASet.has(row.twitterDetails_postId)) {
-          allMatchedRows.push(row);
-        }
-      });
-
-      expect(allMatchedRows.length).toBe(fileBData.rows.length);
-    });
-  });
-
-  describe('Performance and Edge Cases', () => {
-    test('should handle large number of fields', () => {
-      // Create a test row with many fields
-      const largeRow: any = {};
-      const largeHeaders: string[] = [];
-
-      for (let i = 0; i < 100; i++) {
-        largeHeaders.push(`field${i}`);
-        largeRow[`field${i}`] = `value${i}`;
-      }
-
-      const fieldIndices = Array.from({ length: 100 }, (_, i) => i);
-      const key = createComparisonKey(largeRow, largeHeaders, fieldIndices);
-
-      expect(key).toContain('value0');
-      expect(key).toContain('value99');
-      expect(key.split('|')).toHaveLength(100);
-    });
-
-    test('should handle special characters in data', () => {
-      const specialRow = {
-        id: '1',
-        content: 'Hello, "world"! @#$%^&*()',
-        date: '2024-01-01'
-      };
-      const headers = ['id', 'content', 'date'];
-      const fieldIndices = [1]; // content field
-
-      const key = createComparisonKey(specialRow, headers, fieldIndices);
-      expect(key).toBe('Hello, "world"! @#$%^&*()');
-    });
-
-    test('should handle Unicode characters', () => {
-      const unicodeRow = {
-        id: '1',
-        content: 'Hello 世界 🌍 Café',
-        date: '2024-01-01'
-      };
-      const headers = ['id', 'content', 'date'];
-      const fieldIndices = [1]; // content field
-
-      const key = createComparisonKey(unicodeRow, headers, fieldIndices);
-      expect(key).toBe('Hello 世界 🌍 Café');
-    });
+    expect(showPluginFooterSpy).toHaveBeenCalledTimes(1);
   });
 });
